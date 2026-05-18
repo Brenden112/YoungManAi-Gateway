@@ -66,4 +66,18 @@ const (
 	// ContextKeyLanguage stores the user's language preference for i18n
 	ContextKeyLanguage ContextKey = "language"
 	ContextKeyIsStream ContextKey = "is_stream"
+
+	// ContextKeyIsExperimentalProxy is set to true when the selected channel is experimental_proxy.
+	// Used for log tagging (M8-F04) and audit trails.
+	ContextKeyIsExperimentalProxy ContextKey = "is_experimental_proxy"
+
+	// ContextKeyTokenAllowExperimental is set from Token.AllowExperimental during auth.
+	// When false (default), the token cannot route to experimental_proxy channels.
+	ContextKeyTokenAllowExperimental ContextKey = "token_allow_experimental"
+	ContextKeyTokenAllowedProviders  ContextKey = "token_allowed_provider_types"
+
+	// M12: org/project/provider context keys for usage log population
+	ContextKeyTokenOrgId          ContextKey = "token_org_id"
+	ContextKeyTokenProjectId      ContextKey = "token_project_id"
+	ContextKeyChannelProviderType ContextKey = "channel_provider_type"
 )

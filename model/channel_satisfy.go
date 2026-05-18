@@ -6,16 +6,23 @@ import (
 )
 
 func IsChannelEnabledForGroupModel(group string, modelName string, channelID int) bool {
+	return IsChannelEnabledForGroupModelWithProviderPolicy(group, modelName, channelID, ProviderTypePolicyFromAllowExperimental(true))
+}
+
+func IsChannelEnabledForGroupModelWithProviderPolicy(group string, modelName string, channelID int, policy ProviderTypePolicy) bool {
 	if group == "" || modelName == "" || channelID <= 0 {
 		return false
 	}
 	if !common.MemoryCacheEnabled {
-		return isChannelEnabledForGroupModelDB(group, modelName, channelID)
+		return isChannelEnabledForGroupModelDB(group, modelName, channelID, policy)
 	}
 
 	channelSyncLock.RLock()
 	defer channelSyncLock.RUnlock()
 
+	if ch, ok := channelsIDM[channelID]; !ok || !IsChannelRoutableWithProviderPolicy(*ch, policy) {
+		return false
+	}
 	if group2model2channels == nil {
 		return false
 	}
@@ -42,7 +49,14 @@ func IsChannelEnabledForAnyGroupModel(groups []string, modelName string, channel
 	return false
 }
 
-func isChannelEnabledForGroupModelDB(group string, modelName string, channelID int) bool {
+func isChannelEnabledForGroupModelDB(group string, modelName string, channelID int, policy ProviderTypePolicy) bool {
+	var channel Channel
+	if err := DB.Select("id", "type", "status", "provider_type").First(&channel, "id = ?", channelID).Error; err != nil {
+		return false
+	}
+	if !IsChannelRoutableWithProviderPolicy(channel, policy) {
+		return false
+	}
 	var count int64
 	err := DB.Model(&Ability{}).
 		Where(commonGroupCol+" = ? and model = ? and channel_id = ? and enabled = ?", group, modelName, channelID, true).

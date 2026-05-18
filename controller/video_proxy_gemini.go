@@ -166,9 +166,9 @@ func getVertexVideoURL(channel *model.Channel, task *model.Task) (string, error)
 		return "", fmt.Errorf("vertex task adaptor not found")
 	}
 
-	key := getVertexTaskKey(channel, task)
-	if key == "" {
-		return "", fmt.Errorf("vertex key not available for task")
+	key, err := getVertexTaskKey(channel, task)
+	if err != nil {
+		return "", err
 	}
 
 	resp, err := adaptor.FetchTask(baseURL, key, map[string]any{
@@ -205,23 +205,33 @@ func isTaskProxyContentURL(url string, taskID string) bool {
 	return strings.Contains(url, "/v1/videos/"+taskID+"/content")
 }
 
-func getVertexTaskKey(channel *model.Channel, task *model.Task) string {
+func getVertexTaskKey(channel *model.Channel, task *model.Task) (string, error) {
+	if channel == nil {
+		return "", fmt.Errorf("vertex channel is nil")
+	}
+	if channel.ProviderAccountId != nil {
+		key, _, apiErr := channel.ResolveActiveCredential()
+		if apiErr != nil {
+			return "", fmt.Errorf("provider account credential unavailable")
+		}
+		return key, nil
+	}
 	if task != nil {
 		if key := strings.TrimSpace(task.PrivateData.Key); key != "" {
-			return key
+			return key, nil
 		}
-	}
-	if channel == nil {
-		return ""
 	}
 	keys := channel.GetKeys()
 	for _, key := range keys {
 		key = strings.TrimSpace(key)
 		if key != "" {
-			return key
+			return key, nil
 		}
 	}
-	return strings.TrimSpace(channel.Key)
+	if key := strings.TrimSpace(channel.Key); key != "" {
+		return key, nil
+	}
+	return "", fmt.Errorf("vertex key not available for task")
 }
 
 func extractVertexVideoURLFromTaskData(task *model.Task) string {

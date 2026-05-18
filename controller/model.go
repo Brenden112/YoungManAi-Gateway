@@ -124,6 +124,15 @@ func ListModels(c *gin.Context, modelType int) {
 	}
 
 	modelLimitEnable := common.GetContextKeyBool(c, constant.ContextKeyTokenModelLimitEnabled)
+	userId := c.GetInt("id")
+	userGroup, _ := model.GetUserGroup(userId, false)
+	group := userGroup
+	tokenGroup := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
+	if tokenGroup != "" {
+		group = tokenGroup
+	}
+	providerPolicy := service.GetProviderTypePolicyForRequest(c)
+	providerAllowedModels := collectProviderAllowedModels(userGroup, group, tokenGroup, providerPolicy)
 	if modelLimitEnable {
 		s, ok := common.GetContextKey(c, constant.ContextKeyTokenModelLimit)
 		var tokenModelLimit map[string]bool
@@ -133,6 +142,9 @@ func ListModels(c *gin.Context, modelType int) {
 			tokenModelLimit = map[string]bool{}
 		}
 		for allowModel, _ := range tokenModelLimit {
+			if providerAllowedModels != nil && !providerAllowedModels[allowModel] {
+				continue
+			}
 			if !acceptUnsetRatioModel {
 				if !helper.HasModelBillingConfig(allowModel) {
 					continue
@@ -152,8 +164,8 @@ func ListModels(c *gin.Context, modelType int) {
 			}
 		}
 	} else {
-		userId := c.GetInt("id")
-		userGroup, err := model.GetUserGroup(userId, false)
+		var err error
+		userGroup, err = model.GetUserGroup(userId, false)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -161,15 +173,10 @@ func ListModels(c *gin.Context, modelType int) {
 			})
 			return
 		}
-		group := userGroup
-		tokenGroup := common.GetContextKeyString(c, constant.ContextKeyTokenGroup)
-		if tokenGroup != "" {
-			group = tokenGroup
-		}
 		var models []string
 		if tokenGroup == "auto" {
 			for _, autoGroup := range service.GetUserAutoGroup(userGroup) {
-				groupModels := model.GetGroupEnabledModels(autoGroup)
+				groupModels := model.GetGroupEnabledModelsWithProviderPolicy(autoGroup, providerPolicy)
 				for _, g := range groupModels {
 					if !common.StringsContains(models, g) {
 						models = append(models, g)
@@ -177,7 +184,7 @@ func ListModels(c *gin.Context, modelType int) {
 				}
 			}
 		} else {
-			models = model.GetGroupEnabledModels(group)
+			models = model.GetGroupEnabledModelsWithProviderPolicy(group, providerPolicy)
 		}
 		for _, modelName := range models {
 			if !acceptUnsetRatioModel {
@@ -236,6 +243,25 @@ func ListModels(c *gin.Context, modelType int) {
 			"object":  "list",
 		})
 	}
+}
+
+func collectProviderAllowedModels(userGroup string, group string, tokenGroup string, providerPolicy model.ProviderTypePolicy) map[string]bool {
+	models := make(map[string]bool)
+	if tokenGroup == "auto" {
+		for _, autoGroup := range service.GetUserAutoGroup(userGroup) {
+			for _, modelName := range model.GetGroupEnabledModelsWithProviderPolicy(autoGroup, providerPolicy) {
+				models[modelName] = true
+			}
+		}
+		return models
+	}
+	if group == "" {
+		return nil
+	}
+	for _, modelName := range model.GetGroupEnabledModelsWithProviderPolicy(group, providerPolicy) {
+		models[modelName] = true
+	}
+	return models
 }
 
 func ChannelListModels(c *gin.Context) {

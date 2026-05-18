@@ -45,6 +45,41 @@ func GetAllTokens(c *gin.Context) {
 	common.ApiSuccess(c, pageInfo)
 }
 
+// GetAdminAllTokens lists all tokens across all users with optional filters.
+// M15-F01: admin-wide token list with org/project/allow_experimental filters.
+func GetAdminAllTokens(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	userIdStr := c.Query("user_id")
+	userId, _ := strconv.Atoi(userIdStr)
+
+	var orgId *int
+	if v := c.Query("org_id"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			orgId = &n
+		}
+	}
+	var projectId *int
+	if v := c.Query("project_id"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			projectId = &n
+		}
+	}
+	var allowExperimental *bool
+	if v := c.Query("allow_experimental"); v != "" {
+		b := v == "true" || v == "1"
+		allowExperimental = &b
+	}
+
+	tokens, total, err := model.GetAdminAllTokens(userId, orgId, projectId, allowExperimental, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(buildMaskedTokenResponses(tokens))
+	common.ApiSuccess(c, pageInfo)
+}
+
 func SearchTokens(c *gin.Context) {
 	userId := c.GetInt("id")
 	keyword := c.Query("keyword")
@@ -78,20 +113,7 @@ func GetToken(c *gin.Context) {
 }
 
 func GetTokenKey(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	userId := c.GetInt("id")
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	token, err := model.GetTokenByIds(id, userId)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	common.ApiSuccess(c, gin.H{
-		"key": token.GetFullKey(),
-	})
+	common.ApiError(c, fmt.Errorf("full API keys are only shown once when created; rotate this key if it was lost"))
 }
 
 func GetTokenStatus(c *gin.Context) {
@@ -135,7 +157,7 @@ func GetTokenUsage(c *gin.Context) {
 	}
 	tokenKey := parts[1]
 
-	token, err := model.GetTokenByKey(strings.TrimPrefix(tokenKey, "sk-"), false)
+	token, err := model.GetTokenByKey(tokenKey, false)
 	if err != nil {
 		common.SysError("failed to get token by key: " + err.Error())
 		common.ApiErrorI18n(c, i18n.MsgTokenGetInfoFailed)
@@ -175,6 +197,10 @@ func AddToken(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
 	}
+	if err := token.ValidateAllowedProviderTypes(); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	// 非无限额度时，检查额度值是否超出有效范围
 	if !token.UnlimitedQuota {
 		if token.RemainQuota < 0 {
@@ -208,19 +234,27 @@ func AddToken(c *gin.Context) {
 		return
 	}
 	cleanToken := model.Token{
-		UserId:             c.GetInt("id"),
-		Name:               token.Name,
-		Key:                key,
-		CreatedTime:        common.GetTimestamp(),
-		AccessedTime:       common.GetTimestamp(),
-		ExpiredTime:        token.ExpiredTime,
-		RemainQuota:        token.RemainQuota,
-		UnlimitedQuota:     token.UnlimitedQuota,
-		ModelLimitsEnabled: token.ModelLimitsEnabled,
-		ModelLimits:        token.ModelLimits,
-		AllowIps:           token.AllowIps,
-		Group:              token.Group,
-		CrossGroupRetry:    token.CrossGroupRetry,
+		UserId:               c.GetInt("id"),
+		Name:                 token.Name,
+		Key:                  key,
+		CreatedTime:          common.GetTimestamp(),
+		AccessedTime:         common.GetTimestamp(),
+		ExpiredTime:          token.ExpiredTime,
+		RemainQuota:          token.RemainQuota,
+		UnlimitedQuota:       token.UnlimitedQuota,
+		ModelLimitsEnabled:   token.ModelLimitsEnabled,
+		ModelLimits:          token.ModelLimits,
+		AllowIps:             token.AllowIps,
+		Group:                token.Group,
+		CrossGroupRetry:      token.CrossGroupRetry,
+		OrgId:                token.OrgId,
+		ProjectId:            token.ProjectId,
+		AllowExperimental:    token.AllowExperimental,
+		AllowedProviderTypes: token.AllowedProviderTypes,
+	}
+	if err := model.ValidateTokenTenantBinding(&cleanToken); err != nil {
+		common.ApiError(c, err)
+		return
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -230,6 +264,10 @@ func AddToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
+		"data": gin.H{
+			"key":        key,
+			"key_prefix": cleanToken.KeyPrefix,
+		},
 	})
 }
 
@@ -258,6 +296,10 @@ func UpdateToken(c *gin.Context) {
 	}
 	if len(token.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
+		return
+	}
+	if err := token.ValidateAllowedProviderTypes(); err != nil {
+		common.ApiError(c, err)
 		return
 	}
 	if !token.UnlimitedQuota {
@@ -299,6 +341,14 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = token.AllowIps
 		cleanToken.Group = token.Group
 		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		cleanToken.OrgId = token.OrgId
+		cleanToken.ProjectId = token.ProjectId
+		cleanToken.AllowExperimental = token.AllowExperimental
+		cleanToken.AllowedProviderTypes = token.AllowedProviderTypes
+	}
+	if err := model.ValidateTokenTenantBinding(cleanToken); err != nil {
+		common.ApiError(c, err)
+		return
 	}
 	err = cleanToken.Update()
 	if err != nil {
@@ -353,7 +403,7 @@ func GetTokenKeysBatch(c *gin.Context) {
 	}
 	keysMap := make(map[int]string)
 	for _, t := range tokens {
-		keysMap[t.Id] = t.GetFullKey()
+		keysMap[t.Id] = t.KeyPrefix
 	}
 	common.ApiSuccess(c, gin.H{"keys": keysMap})
 }

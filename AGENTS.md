@@ -135,3 +135,39 @@ For request structs that are parsed from client JSON and then re-marshaled to up
 ### Rule 7: Billing Expression System — Read `pkg/billingexpr/expr.md`
 
 When working on tiered/dynamic billing (expression-based pricing), you MUST read `pkg/billingexpr/expr.md` first. It documents the design philosophy, expression language (variables, functions, examples), full system architecture (editor → storage → pre-consume → settlement → log display), token normalization rules (`p`/`c` auto-exclusion), quota conversion, and expression versioning. All code changes to the billing expression system must follow the patterns described in that document.
+
+### Rule 8: Mandatory Feature Completion Rule — Update Development Log
+
+After completing **any** feature, the Worker MUST update both files before returning the final handoff:
+
+- `docs/DEVELOPMENT_LOG.md`
+- `.factory/mission-state.json`
+
+**Do NOT claim a feature is completed unless both files are updated.**
+
+#### On Completion
+- Add feature to `completed_features` in `.factory/mission-state.json`; remove from `pending_features`
+- Update `validation_status` for all fulfilled assertions
+- Append a change record to `docs/DEVELOPMENT_LOG.md`
+- Update `current_milestone`, `current_feature`, `next_recommended_action`
+
+#### On Blocked
+- Add to `blocked_features`; keep out of `completed_features`
+- Record `blocker`, `why_it_blocks_the_mission`, `minimal_fix_path`
+- Do NOT continue to the next feature automatically
+
+#### On Failed
+- Mark `status: failed`; record failure reason and failed commands with exit codes
+- Do NOT continue to the next feature automatically
+
+#### Required handoff fields
+The final handoff must explicitly include:
+```json
+{
+  "development_log_updated": true,
+  "mission_state_updated": true
+}
+```
+
+This rule applies to all milestones M0–M16 and all workers.
+See `.factory/mission-state.json` for the full handoff templates.

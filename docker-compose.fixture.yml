@@ -1,0 +1,58 @@
+services:
+  new-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: new-api-fixture:latest
+    restart: unless-stopped
+    ports:
+      - "${FIXTURE_PORT:-3000}:3000"
+    volumes:
+      - fixture_data:/data
+    environment:
+      - REDIS_CONN_STRING=redis://redis:6379
+      - SESSION_SECRET=fixture-session-secret-change-before-real-deploy
+      - CRYPTO_SECRET=fixture-crypto-secret-change-before-real-deploy
+      - TZ=Asia/Shanghai
+      - STORE_FULL_TEXT_ENABLED=false
+      - BATCH_UPDATE_ENABLED=false
+      - CHANNEL_UPSTREAM_MODEL_UPDATE_TASK_ENABLED=false
+    depends_on:
+      redis:
+        condition: service_started
+      fake-upstream:
+        condition: service_started
+    networks:
+      - fixture-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  fake-upstream:
+    image: node:24-alpine
+    working_dir: /fixture
+    command: ["node", "/fixture/fake-openai-provider.mjs"]
+    volumes:
+      - ./scripts/fake-openai-provider.mjs:/fixture/fake-openai-provider.mjs:ro
+    environment:
+      - FAKE_PROVIDER_PORT=4010
+    ports:
+      - "${FAKE_UPSTREAM_PORT:-4010}:4010"
+    networks:
+      - fixture-network
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - fixture-network
+
+volumes:
+  fixture_data:
+
+networks:
+  fixture-network:
+    driver: bridge

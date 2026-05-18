@@ -51,6 +51,11 @@ func Distribute() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
+			if !model.IsChannelAllowedByProviderPolicy(*channel, service.GetProviderTypePolicyForRequest(c)) {
+				common.SysError(fmt.Sprintf("AUD-021 route guard rejected specific channel #%d: provider_type=%s", channel.Id, channel.ProviderType))
+				abortWithOpenAiMessage(c, http.StatusForbidden, "channel provider_type is not allowed by token policy")
+				return
+			}
 		} else {
 			// Select a channel for the user
 			// check token model mapping
@@ -102,16 +107,23 @@ func Distribute() func(c *gin.Context) {
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, modelRequest.Model, usingGroup); found {
 					preferred, err := model.CacheGetChannel(preferredChannelID)
 					if err == nil && preferred != nil {
+						providerPolicy := service.GetProviderTypePolicyForRequest(c)
 						if preferred.Status != common.ChannelStatusEnabled {
 							if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 								abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorAffinityChannelDisabled))
+								return
+							}
+						} else if !model.IsChannelAllowedByProviderPolicy(*preferred, providerPolicy) {
+							common.SysError(fmt.Sprintf("AUD-021 route guard rejected preferred channel #%d: provider_type=%s", preferred.Id, preferred.ProviderType))
+							if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
+								abortWithOpenAiMessage(c, http.StatusForbidden, "preferred channel provider_type is not allowed by token policy")
 								return
 							}
 						} else if usingGroup == "auto" {
 							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
-								if model.IsChannelEnabledForGroupModel(g, modelRequest.Model, preferred.Id) {
+								if model.IsChannelEnabledForGroupModelWithProviderPolicy(g, modelRequest.Model, preferred.Id, providerPolicy) {
 									selectGroup = g
 									common.SetContextKey(c, constant.ContextKeyAutoGroup, g)
 									channel = preferred
@@ -119,7 +131,7 @@ func Distribute() func(c *gin.Context) {
 									break
 								}
 							}
-						} else if model.IsChannelEnabledForGroupModel(usingGroup, modelRequest.Model, preferred.Id) {
+						} else if model.IsChannelEnabledForGroupModelWithProviderPolicy(usingGroup, modelRequest.Model, preferred.Id, providerPolicy) {
 							channel = preferred
 							selectGroup = usingGroup
 							service.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
@@ -129,10 +141,12 @@ func Distribute() func(c *gin.Context) {
 
 				if channel == nil {
 					channel, selectGroup, err = service.CacheGetRandomSatisfiedChannel(&service.RetryParam{
-						Ctx:        c,
-						ModelName:  modelRequest.Model,
-						TokenGroup: usingGroup,
-						Retry:      common.GetPointer(0),
+						Ctx:               c,
+						ModelName:         modelRequest.Model,
+						TokenGroup:        usingGroup,
+						Retry:             common.GetPointer(0),
+						AllowExperimental: service.IsInternalUser(c) && common.GetContextKeyBool(c, constant.ContextKeyTokenAllowExperimental),
+						ProviderPolicy:    service.GetProviderTypePolicyForRequest(c),
 					})
 					if err != nil {
 						showGroup := usingGroup
@@ -156,7 +170,23 @@ func Distribute() func(c *gin.Context) {
 			}
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
-		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		if setupErr := SetupContextForSelectedChannel(c, channel, modelRequest.Model); setupErr != nil {
+			abortWithOpenAiMessage(c, setupErr.StatusCode, setupErr.Error())
+			return
+		}
+		if err := applyChannelModelMappingOverride(c); err != nil {
+			abortWithOpenAiMessage(c, http.StatusBadRequest, err.Error())
+			return
+		}
+		if channel != nil && channel.ProviderType == constant.ProviderTypeExperimentalProxy && !service.IsInternalUser(c) {
+			common.SysError(fmt.Sprintf("AUD-017 route guard rejected non-internal experimental_proxy channel #%d", channel.Id))
+			abortWithOpenAiMessage(c, http.StatusForbidden, "experimental_proxy channels require internal access")
+			return
+		}
+		// M8-F04: tag experimental_proxy requests for log auditing.
+		if channel != nil && channel.ProviderType == constant.ProviderTypeExperimentalProxy {
+			common.SetContextKey(c, constant.ContextKeyIsExperimentalProxy, true)
+		}
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
@@ -347,12 +377,22 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	if channel == nil {
 		return types.NewError(errors.New("channel is nil"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
+	if channel.Status != common.ChannelStatusEnabled {
+		common.SysError(fmt.Sprintf("AUD-017 route guard rejected disabled channel #%d: status=%d provider_type=%s", channel.Id, channel.Status, channel.ProviderType))
+		return types.NewError(errors.New("channel is disabled"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithStatusCode(http.StatusForbidden), types.ErrOptionWithSkipRetry())
+	}
+	if !model.IsChannelAllowedByProviderPolicy(*channel, service.GetProviderTypePolicyForRequest(c)) {
+		common.SysError(fmt.Sprintf("AUD-021 route guard rejected selected channel #%d: provider_type=%s", channel.Id, channel.ProviderType))
+		return types.NewError(errors.New("channel provider_type is not allowed by token policy"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithStatusCode(http.StatusForbidden), types.ErrOptionWithSkipRetry())
+	}
 	common.SetContextKey(c, constant.ContextKeyChannelId, channel.Id)
 	common.SetContextKey(c, constant.ContextKeyChannelName, channel.Name)
 	common.SetContextKey(c, constant.ContextKeyChannelType, channel.Type)
 	common.SetContextKey(c, constant.ContextKeyChannelCreateTime, channel.CreatedTime)
 	common.SetContextKey(c, constant.ContextKeyChannelSetting, channel.GetSetting())
 	common.SetContextKey(c, constant.ContextKeyChannelOtherSetting, channel.GetOtherSettings())
+	// M12-F01: provider type for usage log population
+	common.SetContextKey(c, constant.ContextKeyChannelProviderType, channel.ProviderType)
 	paramOverride := channel.GetParamOverride()
 	headerOverride := channel.GetHeaderOverride()
 	if mergedParam, applied := service.ApplyChannelAffinityOverrideTemplate(c, paramOverride); applied {
@@ -367,7 +407,7 @@ func SetupContextForSelectedChannel(c *gin.Context, channel *model.Channel, mode
 	common.SetContextKey(c, constant.ContextKeyChannelModelMapping, channel.GetModelMapping())
 	common.SetContextKey(c, constant.ContextKeyChannelStatusCodeMapping, channel.GetStatusCodeMapping())
 
-	key, index, newAPIError := channel.GetNextEnabledKey()
+	key, index, newAPIError := channel.ResolveActiveCredential()
 	if newAPIError != nil {
 		return newAPIError
 	}
@@ -432,4 +472,38 @@ func extractModelNameFromGeminiPath(path string) string {
 
 	// 返回模型名部分
 	return path[startIndex : startIndex+colonIndex]
+}
+
+// applyChannelModelMappingOverride checks the ChannelModelMapping table for the
+// selected channel+model pair after channel setup.
+//   - If the model is explicitly disabled, the request is rejected.
+//   - If a provider_model_name override exists, it is merged into the model_mapping
+//     context key so ModelMappedHelper picks it up transparently.
+func applyChannelModelMappingOverride(c *gin.Context) error {
+	channelId := common.GetContextKeyInt(c, constant.ContextKeyChannelId)
+	modelName := c.GetString("original_model")
+	if channelId == 0 || modelName == "" {
+		return nil
+	}
+
+	mapping, found := model.GetChannelModelMapping(channelId, modelName)
+	if !found {
+		return nil
+	}
+	if !mapping.Enabled {
+		return fmt.Errorf("model %q is disabled on this channel", modelName)
+	}
+	if mapping.ProviderModelName != "" && mapping.ProviderModelName != modelName {
+		existing := c.GetString("model_mapping")
+		modelMap := make(map[string]string)
+		if existing != "" && existing != "{}" {
+			_ = common.Unmarshal([]byte(existing), &modelMap)
+		}
+		modelMap[modelName] = mapping.ProviderModelName
+		merged, err := common.Marshal(modelMap)
+		if err == nil {
+			common.SetContextKey(c, constant.ContextKeyChannelModelMapping, string(merged))
+		}
+	}
+	return nil
 }

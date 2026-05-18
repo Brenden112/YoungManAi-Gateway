@@ -281,10 +281,41 @@ func migrateDB() error {
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
 		&PerfMetric{},
+		&ProviderAccount{},
+		&ChannelModelMapping{},
+		&Organization{},
+		&OrganizationMember{},
+		&Project{},
 	)
 	if err != nil {
 		return err
 	}
+	if err := MigratePlaintextTokenKeys(); err != nil {
+		return err
+	}
+	// Backfill provider_type for channels created before this field existed.
+	// Safe to run repeatedly — only touches rows where the value is empty or NULL.
+	DB.Model(&Channel{}).Where("provider_type = '' OR provider_type IS NULL").
+		Update("provider_type", constant.ProviderTypeOfficialCloud)
+	// Refine provider_type: update channels blanket-set to official_cloud in M1
+	// that actually belong to aggregator, authorized_proxy, or experimental_proxy.
+	for channelType, providerType := range constant.ChannelTypeDefaultProviderType {
+		if providerType == constant.ProviderTypeOfficialCloud {
+			continue // already correct
+		}
+		DB.Model(&Channel{}).
+			Where("type = ? AND provider_type = ?", channelType, constant.ProviderTypeOfficialCloud).
+			Update("provider_type", providerType)
+	}
+	// Backfill risk/scope/visibility for any experimental_proxy channels missing these fields.
+	DB.Model(&Channel{}).
+		Where("provider_type = ? AND (risk_level = '' OR risk_level IS NULL)", constant.ProviderTypeExperimentalProxy).
+		Updates(map[string]interface{}{
+			"risk_level":             constant.RiskLevelHigh,
+			"available_scope":        constant.ScopeInternalOnly,
+			"visibility":             constant.VisibilityInternalOnly,
+			"manual_enable_required": true,
+		})
 	if common.UsingSQLite {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
@@ -330,6 +361,11 @@ func migrateDBFast() error {
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
 		{&PerfMetric{}, "PerfMetric"},
+		{&ProviderAccount{}, "ProviderAccount"},
+		{&ChannelModelMapping{}, "ChannelModelMapping"},
+		{&Organization{}, "Organization"},
+		{&OrganizationMember{}, "OrganizationMember"},
+		{&Project{}, "Project"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))

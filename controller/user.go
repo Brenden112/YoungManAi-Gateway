@@ -1041,7 +1041,9 @@ func EmailBind(c *gin.Context) {
 }
 
 type topUpRequest struct {
-	Key string `json:"key"`
+	Key    string `json:"key"`
+	UserId int    `json:"user_id"`
+	Quota  int    `json:"quota"`
 }
 
 var topUpLocks sync.Map
@@ -1086,6 +1088,16 @@ func getTopUpLock(userID int) *topUpTryLock {
 }
 
 func TopUp(c *gin.Context) {
+	req := topUpRequest{}
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if req.UserId != 0 || req.Quota != 0 {
+		adminManualTopUp(c, req)
+		return
+	}
 	if !operation_setting.IsPaymentComplianceConfirmed() {
 		common.ApiErrorI18n(c, i18n.MsgPaymentComplianceRequired)
 		return
@@ -1098,12 +1110,6 @@ func TopUp(c *gin.Context) {
 		return
 	}
 	defer lock.Unlock()
-	req := topUpRequest{}
-	err := c.ShouldBindJSON(&req)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
 	quota, err := model.Redeem(req.Key, id)
 	if err != nil {
 		if errors.Is(err, model.ErrRedeemFailed) {
@@ -1117,6 +1123,48 @@ func TopUp(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data":    quota,
+	})
+}
+
+func adminManualTopUp(c *gin.Context, req topUpRequest) {
+	if c.GetInt("role") < common.RoleAdminUser {
+		common.ApiErrorI18n(c, i18n.MsgAuthInsufficientPrivilege)
+		return
+	}
+	if req.UserId <= 0 || req.Quota <= 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	user, err := model.GetUserById(req.UserId, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if err := model.IncreaseUserQuota(user.Id, req.Quota, true); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	adminInfo := map[string]interface{}{
+		"admin_id":       c.GetInt("id"),
+		"admin_username": c.GetString("username"),
+		"operation":      "manual_topup",
+	}
+	model.RecordLogWithAdminInfo(user.Id, model.LogTypeManage,
+		fmt.Sprintf("管理员手动充值用户额度 %s", logger.LogQuota(req.Quota)), adminInfo)
+
+	updatedUser, err := model.GetUserById(user.Id, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"user_id":     updatedUser.Id,
+			"quota_added": req.Quota,
+			"quota":       updatedUser.Quota,
+		},
 	})
 }
 

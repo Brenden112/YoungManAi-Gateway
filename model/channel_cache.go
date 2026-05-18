@@ -93,10 +93,14 @@ func SyncChannelCache(frequency int) {
 	}
 }
 
-func GetRandomSatisfiedChannel(group string, model string, retry int) (*Channel, error) {
+func GetRandomSatisfiedChannel(group string, model string, retry int, allowExperimental bool) (*Channel, error) {
+	return GetRandomSatisfiedChannelWithProviderPolicy(group, model, retry, ProviderTypePolicyFromAllowExperimental(allowExperimental))
+}
+
+func GetRandomSatisfiedChannelWithProviderPolicy(group string, model string, retry int, policy ProviderTypePolicy) (*Channel, error) {
 	// if memory cache is disabled, get channel directly from database
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry)
+		return GetChannelWithProviderPolicy(group, model, retry, policy)
 	}
 
 	channelSyncLock.RLock()
@@ -111,6 +115,19 @@ func GetRandomSatisfiedChannel(group string, model string, retry int) (*Channel,
 		channels = group2model2channels[group][normalizedModel]
 	}
 
+	if len(channels) == 0 {
+		return nil, nil
+	}
+
+	// AUD-017/AUD-021: exclude disabled channels, disallowed provider types,
+	// and experimental_proxy when request policy does not explicitly allow it.
+	filtered := make([]int, 0, len(channels))
+	for _, id := range channels {
+		if ch, ok := channelsIDM[id]; ok && IsChannelRoutableWithProviderPolicy(*ch, policy) {
+			filtered = append(filtered, id)
+		}
+	}
+	channels = filtered
 	if len(channels) == 0 {
 		return nil, nil
 	}

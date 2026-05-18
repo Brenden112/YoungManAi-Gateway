@@ -1,0 +1,61 @@
+# Local all-in-one deployment — SQLite + Redis
+#
+# Usage:
+#   docker compose -f docker-compose.local.yml up -d --build
+#   Open http://localhost:3000
+#   Default admin: root / 123456  (change on first login)
+#
+# Stop:
+#   docker compose -f docker-compose.local.yml down
+#
+# Reset all data:
+#   docker compose -f docker-compose.local.yml down -v
+
+services:
+  new-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: new-api-local:latest
+    container_name: new-api-local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - local_data:/data
+    environment:
+      # No SQL_DSN → SQLite at /data/new-api.db
+      - REDIS_CONN_STRING=redis://redis:6379
+      - SESSION_SECRET=change-me-in-production
+      - TZ=Asia/Shanghai
+      - BATCH_UPDATE_ENABLED=true
+      # M11: disable full-text prompt/response storage by default
+      - STORE_FULL_TEXT_ENABLED=false
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: new-api-local-redis
+    restart: unless-stopped
+    volumes:
+      - local_redis_data:/data
+    networks:
+      - local-network
+
+volumes:
+  local_data:
+  local_redis_data:
+
+networks:
+  local-network:
+    driver: bridge

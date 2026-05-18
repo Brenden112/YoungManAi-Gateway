@@ -86,11 +86,22 @@ func VideoProxy(c *gin.Context) {
 
 	switch channel.Type {
 	case constant.ChannelTypeGemini:
-		apiKey := task.PrivateData.Key
-		if apiKey == "" {
-			logger.LogError(c.Request.Context(), fmt.Sprintf("Missing stored API key for Gemini task %s", taskID))
-			videoProxyError(c, http.StatusInternalServerError, "server_error", "API key not stored for task")
-			return
+		apiKey := ""
+		if channel.ProviderAccountId != nil {
+			resolved, _, apiErr := channel.ResolveActiveCredential()
+			if apiErr != nil {
+				logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to resolve provider account credential for Gemini task %s", taskID))
+				videoProxyError(c, http.StatusInternalServerError, "server_error", "Provider account credential unavailable")
+				return
+			}
+			apiKey = resolved
+		} else {
+			apiKey = task.PrivateData.Key
+			if apiKey == "" {
+				logger.LogError(c.Request.Context(), fmt.Sprintf("Missing stored API key for Gemini task %s", taskID))
+				videoProxyError(c, http.StatusInternalServerError, "server_error", "API key not stored for task")
+				return
+			}
 		}
 		videoURL, err = getGeminiVideoURL(channel, task, apiKey)
 		if err != nil {
@@ -108,7 +119,13 @@ func VideoProxy(c *gin.Context) {
 		}
 	case constant.ChannelTypeOpenAI, constant.ChannelTypeSora:
 		videoURL = fmt.Sprintf("%s/v1/videos/%s/content", baseURL, task.GetUpstreamTaskID())
-		req.Header.Set("Authorization", "Bearer "+channel.Key)
+		apiKey, _, apiErr := channel.ResolveActiveCredential()
+		if apiErr != nil {
+			logger.LogError(c.Request.Context(), fmt.Sprintf("Failed to resolve provider account credential for task %s", taskID))
+			videoProxyError(c, http.StatusInternalServerError, "server_error", "Provider account credential unavailable")
+			return
+		}
+		req.Header.Set("Authorization", "Bearer "+apiKey)
 	default:
 		// Video URL is stored in PrivateData.ResultURL (fallback to FailReason for old data)
 		videoURL = task.GetResultURL()

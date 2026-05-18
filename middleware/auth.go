@@ -265,6 +265,14 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 			c.Abort()
 			return
 		}
+		if err := model.ValidateTokenTenantBinding(token); err != nil {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgTokenInvalid),
+			})
+			c.Abort()
+			return
+		}
 
 		c.Set("id", token.UserId)
 		c.Set("token_id", token.Id)
@@ -410,9 +418,18 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	if token == nil {
 		return fmt.Errorf("token is nil")
 	}
+	if c.Keys != nil {
+		delete(c.Keys, string(constant.ContextKeyTokenOrgId))
+		delete(c.Keys, string(constant.ContextKeyTokenProjectId))
+	}
+	scope, err := model.ResolveTokenTenantScope(token)
+	if err != nil {
+		abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgTokenInvalid))
+		return err
+	}
 	c.Set("id", token.UserId)
 	c.Set("token_id", token.Id)
-	c.Set("token_key", token.Key)
+	c.Set("token_key", token.KeyHash)
 	c.Set("token_name", token.Name)
 	c.Set("token_unlimited_quota", token.UnlimitedQuota)
 	if !token.UnlimitedQuota {
@@ -426,6 +443,14 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	}
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+	common.SetContextKey(c, constant.ContextKeyTokenAllowExperimental, token.AllowExperimental)
+	common.SetContextKey(c, constant.ContextKeyTokenAllowedProviders, token.GetAllowedProviderTypes())
+	if scope.OrgId != nil {
+		common.SetContextKey(c, constant.ContextKeyTokenOrgId, *scope.OrgId)
+	}
+	if scope.ProjectId != nil {
+		common.SetContextKey(c, constant.ContextKeyTokenProjectId, *scope.ProjectId)
+	}
 	if len(parts) > 1 {
 		if model.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])

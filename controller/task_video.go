@@ -52,7 +52,11 @@ func updateVideoTaskAll(ctx context.Context, platform constant.TaskPlatform, cha
 	info.ChannelMeta = &relaycommon.ChannelMeta{
 		ChannelBaseUrl: cacheGetChannel.GetBaseURL(),
 	}
-	info.ApiKey = cacheGetChannel.Key
+	key, _, apiErr := cacheGetChannel.ResolveActiveCredential()
+	if apiErr != nil {
+		return fmt.Errorf("provider account credential unavailable")
+	}
+	info.ApiKey = key
 	adaptor.Init(info)
 	for _, taskId := range taskIds {
 		if err := updateVideoSingleTask(ctx, adaptor, cacheGetChannel, taskId, taskM); err != nil {
@@ -74,11 +78,19 @@ func updateVideoSingleTask(ctx context.Context, adaptor channel.TaskAdaptor, cha
 		logger.LogError(ctx, fmt.Sprintf("Task %s not found in taskM", taskId))
 		return fmt.Errorf("task %s not found", taskId)
 	}
-	key := channel.Key
-
-	privateData := task.PrivateData
-	if privateData.Key != "" {
-		key = privateData.Key
+	key := ""
+	if channel.ProviderAccountId != nil {
+		resolved, _, apiErr := channel.ResolveActiveCredential()
+		if apiErr != nil {
+			return fmt.Errorf("provider account credential unavailable")
+		}
+		key = resolved
+	} else {
+		key = channel.Key
+		privateData := task.PrivateData
+		if privateData.Key != "" {
+			key = privateData.Key
+		}
 	}
 	resp, err := adaptor.FetchTask(baseURL, key, map[string]any{
 		"task_id": taskId,

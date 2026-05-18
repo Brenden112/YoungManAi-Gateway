@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/types"
 
@@ -17,27 +18,32 @@ import (
 )
 
 type Log struct {
-	Id               int    `json:"id" gorm:"index:idx_created_at_id,priority:1;index:idx_user_id_id,priority:2"`
-	UserId           int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
-	CreatedAt        int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:2;index:idx_created_at_type"`
-	Type             int    `json:"type" gorm:"index:idx_created_at_type"`
-	Content          string `json:"content"`
-	Username         string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
-	TokenName        string `json:"token_name" gorm:"index;default:''"`
-	ModelName        string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
-	Quota            int    `json:"quota" gorm:"default:0"`
-	PromptTokens     int    `json:"prompt_tokens" gorm:"default:0"`
-	CompletionTokens int    `json:"completion_tokens" gorm:"default:0"`
-	UseTime          int    `json:"use_time" gorm:"default:0"`
-	IsStream         bool   `json:"is_stream"`
-	ChannelId        int    `json:"channel" gorm:"index"`
-	ChannelName      string `json:"channel_name" gorm:"->"`
-	TokenId          int    `json:"token_id" gorm:"default:0;index"`
-	Group            string `json:"group" gorm:"index"`
-	Ip               string `json:"ip" gorm:"index;default:''"`
+	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:1;index:idx_user_id_id,priority:2"`
+	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:2;index:idx_created_at_type"`
+	Type              int    `json:"type" gorm:"index:idx_created_at_type"`
+	Content           string `json:"content"`
+	Username          string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
+	TokenName         string `json:"token_name" gorm:"index;default:''"`
+	ModelName         string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
+	Quota             int    `json:"quota" gorm:"default:0"`
+	PromptTokens      int    `json:"prompt_tokens" gorm:"default:0"`
+	CompletionTokens  int    `json:"completion_tokens" gorm:"default:0"`
+	UseTime           int    `json:"use_time" gorm:"default:0"`
+	IsStream          bool   `json:"is_stream"`
+	ChannelId         int    `json:"channel" gorm:"index"`
+	ChannelName       string `json:"channel_name" gorm:"->"`
+	TokenId           int    `json:"token_id" gorm:"default:0;index"`
+	Group             string `json:"group" gorm:"index"`
+	Ip                string `json:"ip" gorm:"index;default:''"`
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
+	// M11-F01: extended fields for B2B gateway
+	OrgId               *int   `json:"org_id" gorm:"index"`
+	ProjectId           *int   `json:"project_id" gorm:"index"`
+	IsExperimentalProxy bool   `json:"is_experimental_proxy" gorm:"default:false"`
+	ProviderType        string `json:"provider_type" gorm:"type:varchar(32);default:''"`
 }
 
 // don't use iota, avoid change log type value
@@ -83,7 +89,7 @@ func RecordLog(userId int, logType int, content string) {
 		Username:  username,
 		CreatedAt: common.GetTimestamp(),
 		Type:      logType,
-		Content:   content,
+		Content:   SanitizeLogString(content),
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -102,13 +108,13 @@ func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo m
 		Username:  username,
 		CreatedAt: common.GetTimestamp(),
 		Type:      logType,
-		Content:   content,
+		Content:   SanitizeLogString(content),
 	}
 	if len(adminInfo) > 0 {
 		other := map[string]interface{}{
 			"admin_info": adminInfo,
 		}
-		log.Other = common.MapToJsonStr(other)
+		log.Other = logOtherToJSON(other)
 	}
 	if err := LOG_DB.Create(log).Error; err != nil {
 		common.SysLog("failed to record log: " + err.Error())
@@ -133,9 +139,9 @@ func RecordTopupLog(userId int, content string, callerIp string, paymentMethod s
 		Username:  username,
 		CreatedAt: common.GetTimestamp(),
 		Type:      LogTypeTopup,
-		Content:   content,
+		Content:   SanitizeLogString(content),
 		Ip:        callerIp,
-		Other:     common.MapToJsonStr(other),
+		Other:     logOtherToJSON(other),
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -145,11 +151,13 @@ func RecordTopupLog(userId int, content string, callerIp string, paymentMethod s
 
 func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string, tokenName string, content string, tokenId int, useTimeSeconds int,
 	isStream bool, group string, other map[string]interface{}) {
-	logger.LogInfo(c, fmt.Sprintf("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, content))
+	sanitizedContent := SanitizeErrorMessage(content)
+	sanitizedOther := SanitizeLogOther(other)
+	logger.LogInfo(c, fmt.Sprintf("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, sanitizedContent))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
-	otherStr := common.MapToJsonStr(other)
+	otherStr := logOtherToJSON(sanitizedOther)
 	// 判断是否需要记录 IP
 	needRecordIp := false
 	if settingMap, err := GetUserSetting(userId, false); err == nil {
@@ -162,7 +170,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		Username:         username,
 		CreatedAt:        common.GetTimestamp(),
 		Type:             LogTypeError,
-		Content:          content,
+		Content:          sanitizedContent,
 		PromptTokens:     0,
 		CompletionTokens: 0,
 		TokenName:        tokenName,
@@ -208,11 +216,17 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	if !common.LogConsumeEnabled {
 		return
 	}
+	params.Other = SanitizeLogOther(params.Other)
+	if common.StoreFullTextEnabled {
+		params.Content = SanitizeLogString(params.Content)
+	} else {
+		params.Content = ""
+	}
 	logger.LogInfo(c, fmt.Sprintf("record consume log: userId=%d, params=%s", userId, common.GetJsonString(params)))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
-	otherStr := common.MapToJsonStr(params.Other)
+	otherStr := logOtherToJSON(params.Other)
 	// 判断是否需要记录 IP
 	needRecordIp := false
 	if settingMap, err := GetUserSetting(userId, false); err == nil {
@@ -242,9 +256,23 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			}
 			return ""
 		}(),
-		RequestId:         requestId,
-		UpstreamRequestId: upstreamRequestId,
-		Other:             otherStr,
+		RequestId:           requestId,
+		UpstreamRequestId:   upstreamRequestId,
+		Other:               otherStr,
+		IsExperimentalProxy: common.GetContextKeyBool(c, constant.ContextKeyIsExperimentalProxy),
+		ProviderType:        common.GetContextKeyString(c, constant.ContextKeyChannelProviderType),
+		OrgId: func() *int {
+			if v := common.GetContextKeyInt(c, constant.ContextKeyTokenOrgId); v != 0 {
+				return &v
+			}
+			return nil
+		}(),
+		ProjectId: func() *int {
+			if v := common.GetContextKeyInt(c, constant.ContextKeyTokenProjectId); v != 0 {
+				return &v
+			}
+			return nil
+		}(),
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -285,14 +313,14 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 		Username:  username,
 		CreatedAt: common.GetTimestamp(),
 		Type:      params.LogType,
-		Content:   params.Content,
+		Content:   SanitizeLogString(params.Content),
 		TokenName: tokenName,
 		ModelName: params.ModelName,
 		Quota:     params.Quota,
 		ChannelId: params.ChannelId,
 		TokenId:   params.TokenId,
 		Group:     params.Group,
-		Other:     common.MapToJsonStr(params.Other),
+		Other:     logOtherToJSON(params.Other),
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -300,7 +328,7 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string) (logs []*Log, total int64, err error) {
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, providerType string, isExperimentalProxy *bool) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -334,6 +362,13 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	}
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+	}
+	// M15-F02: provider_type and is_experimental_proxy filters
+	if providerType != "" {
+		tx = tx.Where("logs.provider_type = ?", providerType)
+	}
+	if isExperimentalProxy != nil {
+		tx = tx.Where("logs.is_experimental_proxy = ?", *isExperimentalProxy)
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
@@ -518,6 +553,38 @@ func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	}
 	tx.Where("type = ?", LogTypeConsume).Scan(&token)
 	return token
+}
+
+// TokenUsageStats aggregates token counts and quota cost for a user/org/project.
+type TokenUsageStats struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
+	TotalTokens      int64 `json:"total_tokens"`
+	TotalQuota       int64 `json:"total_quota"`
+	RequestCount     int64 `json:"request_count"`
+}
+
+// GetTokenUsageStats returns aggregated token usage for a user within an optional time range.
+// Pass orgId=0 or projectId=0 to skip that filter.
+func GetTokenUsageStats(userId, orgId, projectId int, startTimestamp, endTimestamp int64) TokenUsageStats {
+	var stats TokenUsageStats
+	tx := LOG_DB.Model(&Log{}).
+		Select("COALESCE(SUM(prompt_tokens),0) as prompt_tokens, COALESCE(SUM(completion_tokens),0) as completion_tokens, COALESCE(SUM(prompt_tokens+completion_tokens),0) as total_tokens, COALESCE(SUM(quota),0) as total_quota, COUNT(*) as request_count").
+		Where("type = ? AND user_id = ?", LogTypeConsume, userId)
+	if orgId != 0 {
+		tx = tx.Where("org_id = ?", orgId)
+	}
+	if projectId != 0 {
+		tx = tx.Where("project_id = ?", projectId)
+	}
+	if startTimestamp != 0 {
+		tx = tx.Where("created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("created_at <= ?", endTimestamp)
+	}
+	tx.Scan(&stats)
+	return stats
 }
 
 func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {

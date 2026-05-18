@@ -55,6 +55,7 @@ const (
 	ChannelTypeSora           = 55
 	ChannelTypeReplicate      = 56
 	ChannelTypeCodex          = 57
+	ChannelTypeKiroGateway    = 58
 	ChannelTypeDummy          // this one is only for count, do not add any channel after this
 
 )
@@ -118,6 +119,7 @@ var ChannelBaseURLs = []string{
 	"https://api.openai.com",                    //55
 	"https://api.replicate.com",                 //56
 	"https://chatgpt.com",                       //57
+	"",                                          //58 KiroGateway — base URL configured per-channel
 }
 
 var ChannelTypeNames = map[int]string{
@@ -175,6 +177,7 @@ var ChannelTypeNames = map[int]string{
 	ChannelTypeSora:           "Sora",
 	ChannelTypeReplicate:      "Replicate",
 	ChannelTypeCodex:          "Codex",
+	ChannelTypeKiroGateway:    "KiroGateway",
 }
 
 func GetChannelTypeName(channelType int) string {
@@ -207,3 +210,115 @@ var ChannelSpecialBases = map[string]ChannelSpecialBase{
 		OpenAIBaseURL: "https://ark.cn-beijing.volces.com/api/coding/v3",
 	},
 }
+
+// Provider type constants for the B2B gateway layer.
+// These classify upstream channels by trust level and availability scope.
+const (
+	ProviderTypeOfficialCloud     = "official_cloud"
+	ProviderTypeAggregator        = "aggregator"
+	ProviderTypeAuthorizedProxy   = "authorized_proxy"
+	ProviderTypeExperimentalProxy = "experimental_proxy"
+)
+
+var validProviderTypes = map[string]bool{
+	ProviderTypeOfficialCloud:     true,
+	ProviderTypeAggregator:        true,
+	ProviderTypeAuthorizedProxy:   true,
+	ProviderTypeExperimentalProxy: true,
+}
+
+// IsValidProviderType returns true if pt is one of the four recognised provider types.
+func IsValidProviderType(pt string) bool {
+	return validProviderTypes[pt]
+}
+
+// ChannelTypeDefaultProviderType maps each channel type to its default provider_type.
+// Types absent from this map default to official_cloud.
+var ChannelTypeDefaultProviderType = map[int]string{
+	// ── official_cloud — direct upstream API ─────────────────────────────────
+	ChannelTypeOpenAI:      ProviderTypeOfficialCloud,
+	ChannelTypeAzure:       ProviderTypeOfficialCloud,
+	ChannelTypeAnthropic:   ProviderTypeOfficialCloud,
+	ChannelTypeGemini:      ProviderTypeOfficialCloud,
+	ChannelTypeAws:         ProviderTypeOfficialCloud,
+	ChannelTypeVertexAi:    ProviderTypeOfficialCloud,
+	ChannelTypeBaidu:       ProviderTypeOfficialCloud,
+	ChannelTypeBaiduV2:     ProviderTypeOfficialCloud,
+	ChannelTypeZhipu:       ProviderTypeOfficialCloud,
+	ChannelTypeZhipu_v4:    ProviderTypeOfficialCloud,
+	ChannelTypeAli:         ProviderTypeOfficialCloud,
+	ChannelTypeXunfei:      ProviderTypeOfficialCloud,
+	ChannelType360:         ProviderTypeOfficialCloud,
+	ChannelTypeTencent:     ProviderTypeOfficialCloud,
+	ChannelTypeMoonshot:    ProviderTypeOfficialCloud,
+	ChannelTypePerplexity:  ProviderTypeOfficialCloud,
+	ChannelTypeLingYiWanWu: ProviderTypeOfficialCloud,
+	ChannelTypeCohere:      ProviderTypeOfficialCloud,
+	ChannelTypeMiniMax:     ProviderTypeOfficialCloud,
+	ChannelTypeMistral:     ProviderTypeOfficialCloud,
+	ChannelTypeDeepSeek:    ProviderTypeOfficialCloud,
+	ChannelTypeVolcEngine:  ProviderTypeOfficialCloud,
+	ChannelTypeXai:         ProviderTypeOfficialCloud,
+	ChannelTypeReplicate:   ProviderTypeOfficialCloud,
+	ChannelTypeKling:       ProviderTypeOfficialCloud,
+	ChannelTypeJimeng:      ProviderTypeOfficialCloud,
+	ChannelTypeVidu:        ProviderTypeOfficialCloud,
+	ChannelTypeSora:        ProviderTypeOfficialCloud,
+	ChannelTypeDoubaoVideo: ProviderTypeOfficialCloud,
+	ChannelTypePaLM:        ProviderTypeOfficialCloud,
+	ChannelTypeMokaAI:      ProviderTypeOfficialCloud,
+
+	// ── aggregator — multi-provider aggregator ────────────────────────────────
+	ChannelTypeOpenRouter:     ProviderTypeAggregator,
+	ChannelTypeSiliconFlow:    ProviderTypeAggregator,
+	ChannelTypeSubmodel:       ProviderTypeAggregator,
+	ChannelTypeOpenAIMax:      ProviderTypeAggregator,
+	ChannelTypeOhMyGPT:        ProviderTypeAggregator,
+	ChannelTypeAILS:           ProviderTypeAggregator,
+	ChannelTypeAIProxy:        ProviderTypeAggregator,
+	ChannelTypeAPI2GPT:        ProviderTypeAggregator,
+	ChannelTypeAIGC2D:         ProviderTypeAggregator,
+	ChannelTypeAIProxyLibrary: ProviderTypeAggregator,
+	ChannelTypeFastGPT:        ProviderTypeAggregator,
+	ChannelTypeCoze:           ProviderTypeAggregator,
+
+	// ── authorized_proxy — self-hosted / local ────────────────────────────────
+	ChannelTypeOllama:     ProviderTypeAuthorizedProxy,
+	ChannelTypeCustom:     ProviderTypeAuthorizedProxy,
+	ChannelTypeXinference: ProviderTypeAuthorizedProxy,
+	ChannelTypeDify:       ProviderTypeAuthorizedProxy,
+	ChannelCloudflare:     ProviderTypeAuthorizedProxy,
+	ChannelTypeJina:       ProviderTypeAuthorizedProxy,
+	ChannelTypeSunoAPI:    ProviderTypeAuthorizedProxy,
+
+	// ── experimental_proxy — unofficial / experimental ────────────────────────
+	ChannelTypeCodex:       ProviderTypeExperimentalProxy,
+	ChannelTypeKiroGateway: ProviderTypeExperimentalProxy,
+}
+
+// GetDefaultProviderType returns the default provider_type for a given channel type.
+// Falls back to official_cloud for unknown or unlisted types.
+func GetDefaultProviderType(channelType int) string {
+	if pt, ok := ChannelTypeDefaultProviderType[channelType]; ok {
+		return pt
+	}
+	return ProviderTypeOfficialCloud
+}
+
+// Risk level constants for Channel.RiskLevel.
+const (
+	RiskLevelNormal = "normal"
+	RiskLevelHigh   = "high"
+)
+
+// Scope constants for Channel.AvailableScope.
+const (
+	ScopePublic       = "public"
+	ScopeInternalOnly = "internal_only"
+)
+
+// Visibility constants for Channel.Visibility.
+const (
+	VisibilityPublic       = "public"
+	VisibilityInternalOnly = "internal_only"
+)

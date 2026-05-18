@@ -85,6 +85,8 @@ func GetAllChannels(c *gin.Context) {
 			typeFilter = t
 		}
 	}
+	// M14-F03: provider_type filter
+	providerTypeFilter := c.Query("provider_type")
 
 	var total int64
 
@@ -114,6 +116,9 @@ func GetAllChannels(c *gin.Context) {
 				if typeFilter >= 0 && ch.Type != typeFilter {
 					continue
 				}
+				if providerTypeFilter != "" && ch.ProviderType != providerTypeFilter {
+					continue
+				}
 				filtered = append(filtered, ch)
 			}
 			channelData = append(channelData, filtered...)
@@ -123,6 +128,9 @@ func GetAllChannels(c *gin.Context) {
 		baseQuery := model.DB.Model(&model.Channel{})
 		if typeFilter >= 0 {
 			baseQuery = baseQuery.Where("type = ?", typeFilter)
+		}
+		if providerTypeFilter != "" {
+			baseQuery = baseQuery.Where("provider_type = ?", providerTypeFilter)
 		}
 		if statusFilter == common.ChannelStatusEnabled {
 			baseQuery = baseQuery.Where("status = ?", common.ChannelStatusEnabled)
@@ -450,6 +458,12 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		}
 	}
 
+	// Validate provider_type when explicitly provided.
+	// Empty string is allowed — BeforeCreate will set the correct default.
+	if channel.ProviderType != "" && !constant.IsValidProviderType(channel.ProviderType) {
+		return fmt.Errorf("invalid provider_type %q: must be one of official_cloud, aggregator, authorized_proxy, experimental_proxy", channel.ProviderType)
+	}
+
 	// VertexAI 特殊校验
 	if channel.Type == constant.ChannelTypeVertexAi {
 		if channel.Other == "" {
@@ -689,6 +703,37 @@ func DeleteDisabledChannel(c *gin.Context) {
 		"data":    rows,
 	})
 	return
+}
+
+// DisableExperimentalProxyChannels disables all enabled experimental_proxy channels.
+// M14-F02: one-click disable for experimental_proxy.
+func DisableExperimentalProxyChannels(c *gin.Context) {
+	rows, err := model.DisableExperimentalProxyChannels()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	model.InitChannelCache()
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    rows,
+	})
+}
+
+// GetChannelProviderSummary returns per-provider_type channel counts.
+// M14-F01: admin view of provider types, risk levels, and channel counts.
+func GetChannelProviderSummary(c *gin.Context) {
+	summary, err := model.GetChannelProviderSummary()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    summary,
+	})
 }
 
 type ChannelTag struct {

@@ -22,7 +22,14 @@ func GetAllLogs(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId)
+	// M15-F02: provider_type and is_experimental_proxy filters
+	providerType := c.Query("provider_type")
+	var isExperimentalProxy *bool
+	if v := c.Query("is_experimental_proxy"); v != "" {
+		b := v == "true" || v == "1"
+		isExperimentalProxy = &b
+	}
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, providerType, isExperimentalProxy)
 	if err != nil {
 		common.ApiError(c, err)
 		return

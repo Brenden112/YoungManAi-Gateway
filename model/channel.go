@@ -54,8 +54,82 @@ type Channel struct {
 
 	OtherSettings string `json:"settings" gorm:"column:settings"` // 其他设置，存储azure版本等不需要检索的信息，详见dto.ChannelOtherSettings
 
+	// Provider type — classifies the upstream by trust level and availability scope.
+	// Values: official_cloud | aggregator | authorized_proxy | experimental_proxy
+	// Default: official_cloud (backward-compatible with all pre-existing channels).
+	ProviderType string `json:"provider_type" gorm:"type:varchar(32);default:'official_cloud'"`
+	// RiskLevel indicates the operational risk of using this channel.
+	// experimental_proxy defaults to "high"; all others default to "normal".
+	RiskLevel string `json:"risk_level" gorm:"type:varchar(32);default:'normal'"`
+	// AvailableScope controls which user groups may route requests to this channel.
+	// "public" = all users; "internal_only" = internal group only.
+	AvailableScope string `json:"available_scope" gorm:"type:varchar(32);default:'public'"`
+	// Visibility controls whether this channel appears in non-admin channel listings.
+	// "public" = visible to all; "internal_only" = admin-only visibility.
+	Visibility string `json:"visibility" gorm:"type:varchar(32);default:'public'"`
+	// ManualEnableRequired: when true the channel must be explicitly enabled before use.
+	// Always forced true for experimental_proxy channels (security invariant).
+	ManualEnableRequired bool `json:"manual_enable_required" gorm:"default:false"`
+	// ProviderAccountId optionally links this channel to a ProviderAccount for
+	// centralised credential management. NULL = channel uses its own Key field
+	// directly (legacy behaviour). No FK constraint — application-level join
+	// for cross-DB compatibility (SQLite does not support ADD CONSTRAINT).
+	ProviderAccountId *int `json:"provider_account_id" gorm:"index"`
+
 	// cache info
 	Keys []string `json:"-" gorm:"-"`
+}
+
+// BeforeCreate sets provider-type-dependent defaults when fields are omitted,
+// ensuring all legacy channel creation paths remain backward-compatible.
+// ManualEnableRequired is always forced true for experimental_proxy (security invariant).
+func (c *Channel) BeforeCreate(tx *gorm.DB) error {
+	if c.ProviderType == "" {
+		// Use channel-type→provider-type mapping for accurate classification.
+		c.ProviderType = constant.GetDefaultProviderType(c.Type)
+	}
+	isExperimental := c.ProviderType == constant.ProviderTypeExperimentalProxy
+	if c.RiskLevel == "" {
+		if isExperimental {
+			c.RiskLevel = constant.RiskLevelHigh
+		} else {
+			c.RiskLevel = constant.RiskLevelNormal
+		}
+	}
+	if c.AvailableScope == "" {
+		if isExperimental {
+			c.AvailableScope = constant.ScopeInternalOnly
+		} else {
+			c.AvailableScope = constant.ScopePublic
+		}
+	}
+	if c.Visibility == "" {
+		if isExperimental {
+			c.Visibility = constant.VisibilityInternalOnly
+		} else {
+			c.Visibility = constant.VisibilityPublic
+		}
+	}
+	// Security invariant: experimental_proxy must always require manual enable.
+	if isExperimental {
+		c.ManualEnableRequired = true
+	}
+	// Default experimental_proxy channels to manually-disabled status.
+	// Status 0 == ChannelStatusUnknown (not explicitly set by caller); safe to override.
+	// An admin who explicitly passes Status=enabled at creation time is respected.
+	if isExperimental && c.Status == common.ChannelStatusUnknown {
+		c.Status = common.ChannelStatusManuallyDisabled
+	}
+	return nil
+}
+
+// GetProviderAccount returns the linked ProviderAccount, or nil if none is set.
+// Returns (nil, nil) when ProviderAccountId is nil — callers must handle this case.
+func (c *Channel) GetProviderAccount() (*ProviderAccount, error) {
+	if c.ProviderAccountId == nil {
+		return nil, nil
+	}
+	return GetProviderAccountById(*c.ProviderAccountId)
 }
 
 type ChannelInfo struct {
@@ -248,6 +322,35 @@ func (channel *Channel) GetNextEnabledKey() (string, int, *types.NewAPIError) {
 		// Unknown mode, default to first enabled key (or original key string)
 		return keys[enabledIdx[0]], enabledIdx[0], nil
 	}
+}
+
+func (channel *Channel) ResolveActiveCredential() (string, int, *types.NewAPIError) {
+	if channel == nil {
+		return "", 0, types.NewError(errors.New("channel is nil"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	if channel.ProviderAccountId == nil {
+		return channel.GetNextEnabledKey()
+	}
+
+	providerAccount, err := channel.GetProviderAccount()
+	if err != nil {
+		common.SysError(fmt.Sprintf("AUD-018 provider account credential resolution failed: channel_id=%d provider_account_id=%d error=%v", channel.Id, *channel.ProviderAccountId, err))
+		return "", 0, types.NewError(errors.New("provider account credential is unavailable"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	if providerAccount == nil {
+		common.SysError(fmt.Sprintf("AUD-018 provider account missing: channel_id=%d provider_account_id=%d", channel.Id, *channel.ProviderAccountId))
+		return "", 0, types.NewError(errors.New("provider account credential is unavailable"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	if !providerAccount.IsEnabled() {
+		common.SysError(fmt.Sprintf("AUD-018 provider account disabled: channel_id=%d provider_account_id=%d status=%d", channel.Id, providerAccount.Id, providerAccount.Status))
+		return "", 0, types.NewError(errors.New("provider account is disabled"), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+	}
+	key := strings.TrimSpace(providerAccount.Key)
+	if key == "" {
+		common.SysError(fmt.Sprintf("AUD-018 provider account credential empty: channel_id=%d provider_account_id=%d", channel.Id, providerAccount.Id))
+		return "", 0, types.NewError(errors.New("provider account credential is empty"), types.ErrorCodeChannelNoAvailableKey, types.ErrOptionWithSkipRetry())
+	}
+	return key, 0, nil
 }
 
 func (channel *Channel) SaveChannelInfo() error {
@@ -825,6 +928,58 @@ func DeleteChannelByStatus(status int64) (int64, error) {
 func DeleteDisabledChannel() (int64, error) {
 	result := DB.Where("status = ? or status = ?", common.ChannelStatusAutoDisabled, common.ChannelStatusManuallyDisabled).Delete(&Channel{})
 	return result.RowsAffected, result.Error
+}
+
+// DisableExperimentalProxyChannels sets all experimental_proxy channels to manually disabled.
+// Returns the number of channels affected.
+func DisableExperimentalProxyChannels() (int64, error) {
+	result := DB.Model(&Channel{}).
+		Where("provider_type = ? AND status = ?", constant.ProviderTypeExperimentalProxy, common.ChannelStatusEnabled).
+		Update("status", common.ChannelStatusManuallyDisabled)
+	return result.RowsAffected, result.Error
+}
+
+// ChannelProviderSummary holds aggregated channel counts per provider_type.
+type ChannelProviderSummary struct {
+	ProviderType string `json:"provider_type"`
+	Total        int64  `json:"total"`
+	Enabled      int64  `json:"enabled"`
+	Disabled     int64  `json:"disabled"`
+}
+
+// GetChannelProviderSummary returns per-provider_type channel counts.
+func GetChannelProviderSummary() ([]ChannelProviderSummary, error) {
+	var rows []struct {
+		ProviderType string
+		Status       int
+		Count        int64
+	}
+	err := DB.Model(&Channel{}).
+		Select("provider_type, status, COUNT(*) as count").
+		Group("provider_type, status").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	summaryMap := make(map[string]*ChannelProviderSummary)
+	for _, r := range rows {
+		s, ok := summaryMap[r.ProviderType]
+		if !ok {
+			s = &ChannelProviderSummary{ProviderType: r.ProviderType}
+			summaryMap[r.ProviderType] = s
+		}
+		s.Total += r.Count
+		if r.Status == common.ChannelStatusEnabled {
+			s.Enabled += r.Count
+		} else {
+			s.Disabled += r.Count
+		}
+	}
+	result := make([]ChannelProviderSummary, 0, len(summaryMap))
+	for _, s := range summaryMap {
+		result = append(result, *s)
+	}
+	return result, nil
 }
 
 func GetPaginatedTags(offset int, limit int) ([]*string, error) {

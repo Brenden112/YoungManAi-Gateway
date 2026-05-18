@@ -39,6 +39,7 @@ import {
   DISABLED_ROW_MOBILE,
   DataTablePage,
 } from '@/components/data-table'
+import { useAuthStore } from '@/stores/auth-store'
 import { getChannels, searchChannels, getGroups } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
@@ -52,6 +53,10 @@ import {
   getChannelTypeIcon,
   getChannelTypeLabel,
 } from '../lib'
+import {
+  filterVisibleChannelsForRole,
+  isDisabledChannel,
+} from '../lib/channel-visibility'
 import type { Channel, ChannelSortBy } from '../types'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
@@ -69,14 +74,13 @@ const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
 ])
 
 function isDisabledChannelRow(channel: Channel) {
-  return (
-    !isTagAggregateRow(channel) && channel.status !== CHANNEL_STATUS.ENABLED
-  )
+  return !isTagAggregateRow(channel) && isDisabledChannel(channel)
 }
 
 export function ChannelsTable() {
   const { t } = useTranslation()
   const { enableTagMode, idSort } = useChannels()
+  const userRole = useAuthStore((state) => state.auth.user?.role)
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   // Table state
@@ -263,14 +267,17 @@ export function ChannelsTable() {
 
   // Apply tag aggregation if tag mode is enabled
   const channels = useMemo(() => {
-    const rawChannels = data?.data?.items || []
+    const rawChannels = filterVisibleChannelsForRole(
+      data?.data?.items || [],
+      userRole
+    )
 
     if (enableTagMode && rawChannels.length > 0) {
       return aggregateChannelsByTag(rawChannels)
     }
 
     return rawChannels
-  }, [data, enableTagMode])
+  }, [data, enableTagMode, userRole])
 
   const totalCount = data?.data?.total || 0
   const typeCounts = data?.data?.type_counts

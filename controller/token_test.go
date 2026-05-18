@@ -42,27 +42,32 @@ type tokenKeyResponse struct {
 	Key string `json:"key"`
 }
 
+type tokenCreateResponse struct {
+	Key       string `json:"key"`
+	KeyPrefix string `json:"key_prefix"`
+}
+
 type sqliteColumnInfo struct {
 	Name string `gorm:"column:name"`
 	Type string `gorm:"column:type"`
 }
 
 type legacyToken struct {
-	Id                 int            `gorm:"primaryKey"`
-	UserId             int            `gorm:"index"`
-	Key                string         `gorm:"column:key;type:char(48);uniqueIndex"`
-	Status             int            `gorm:"default:1"`
-	Name               string         `gorm:"index"`
-	CreatedTime        int64          `gorm:"bigint"`
-	AccessedTime       int64          `gorm:"bigint"`
-	ExpiredTime        int64          `gorm:"bigint;default:-1"`
-	RemainQuota        int            `gorm:"default:0"`
+	Id                 int    `gorm:"primaryKey"`
+	UserId             int    `gorm:"index"`
+	Key                string `gorm:"column:key;type:char(48);uniqueIndex"`
+	Status             int    `gorm:"default:1"`
+	Name               string `gorm:"index"`
+	CreatedTime        int64  `gorm:"bigint"`
+	AccessedTime       int64  `gorm:"bigint"`
+	ExpiredTime        int64  `gorm:"bigint;default:-1"`
+	RemainQuota        int    `gorm:"default:0"`
 	UnlimitedQuota     bool
 	ModelLimitsEnabled bool
-	ModelLimits        string         `gorm:"type:text"`
-	AllowIps           *string        `gorm:"default:''"`
-	UsedQuota          int            `gorm:"default:0"`
-	Group              string         `gorm:"column:group;default:''"`
+	ModelLimits        string  `gorm:"type:text"`
+	AllowIps           *string `gorm:"default:''"`
+	UsedQuota          int     `gorm:"default:0"`
+	Group              string  `gorm:"column:group;default:''"`
 	CrossGroupRetry    bool
 	DeletedAt          gorm.DeletedAt `gorm:"index"`
 }
@@ -103,6 +108,9 @@ func migrateTokenControllerTestDB(t *testing.T, db *gorm.DB) {
 
 	if err := db.AutoMigrate(&model.Token{}); err != nil {
 		t.Fatalf("failed to migrate token table: %v", err)
+	}
+	if err := model.MigratePlaintextTokenKeys(); err != nil {
+		t.Fatalf("failed to migrate plaintext token keys: %v", err)
 	}
 }
 
@@ -320,8 +328,11 @@ func runTokenMigrationCompatibilityTest(t *testing.T, db *gorm.DB, dialect strin
 	if err := db.First(&migratedToken, "name = ?", "legacy-token").Error; err != nil {
 		t.Fatalf("failed to load migrated token row: %v", err)
 	}
-	if migratedToken.Key != legacyKey {
-		t.Fatalf("expected migrated token key %q, got %q", legacyKey, migratedToken.Key)
+	if migratedToken.Key == legacyKey {
+		t.Fatalf("migrated token retained plaintext key")
+	}
+	if migratedToken.KeyHash != model.HashTokenKey(legacyKey) {
+		t.Fatalf("migrated token hash mismatch")
 	}
 	if migratedToken.Name != "legacy-token" {
 		t.Fatalf("expected migrated token name to be preserved, got %q", migratedToken.Name)
@@ -352,8 +363,11 @@ func runTokenMigrationCompatibilityTest(t *testing.T, db *gorm.DB, dialect strin
 	if err := db.First(&fetched, "id = ?", inserted.Id).Error; err != nil {
 		t.Fatalf("failed to fetch long token after migration: %v", err)
 	}
-	if fetched.Key != longKey {
-		t.Fatalf("expected long token key %q, got %q", longKey, fetched.Key)
+	if fetched.Key == longKey {
+		t.Fatalf("long token retained plaintext key")
+	}
+	if fetched.KeyHash != model.HashTokenKey(longKey) {
+		t.Fatalf("long token hash mismatch")
 	}
 }
 
@@ -506,7 +520,51 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	}
 }
 
-func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
+func TestAddTokenReturnsFullKeyOnceAndDoesNotPersistPlaintext(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	body := map[string]any{
+		"name":            "created-token",
+		"expired_time":    -1,
+		"remain_quota":    100,
+		"unlimited_quota": true,
+		"group":           "default",
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected token creation to succeed, got message: %s", response.Message)
+	}
+	var created tokenCreateResponse
+	if err := common.Unmarshal(response.Data, &created); err != nil {
+		t.Fatalf("failed to decode create response: %v", err)
+	}
+	if created.Key == "" {
+		t.Fatal("create response must include one-time full key")
+	}
+
+	var stored model.Token
+	if err := db.First(&stored, "name = ?", "created-token").Error; err != nil {
+		t.Fatalf("failed to load created token: %v", err)
+	}
+	if stored.Key == created.Key {
+		t.Fatal("database stored plaintext key")
+	}
+	if stored.KeyHash != model.HashTokenKey(created.Key) {
+		t.Fatal("stored key hash does not authenticate the one-time key")
+	}
+
+	ctx2, recorder2 := newAuthenticatedContext(t, http.MethodGet, "/api/token/"+strconv.Itoa(stored.Id), nil, 1)
+	ctx2.Params = gin.Params{{Key: "id", Value: strconv.Itoa(stored.Id)}}
+	GetToken(ctx2)
+	if strings.Contains(recorder2.Body.String(), created.Key) {
+		t.Fatalf("subsequent token response leaked one-time key")
+	}
+}
+
+func TestGetTokenKeyDoesNotRedisplayFullKey(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
 	token := seedToken(t, db, 1, "owned-token", "owner1234token5678")
 
@@ -515,16 +573,11 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	GetTokenKey(authorizedCtx)
 
 	authorizedResponse := decodeAPIResponse(t, authorizedRecorder)
-	if !authorizedResponse.Success {
-		t.Fatalf("expected authorized key fetch to succeed, got message: %s", authorizedResponse.Message)
+	if authorizedResponse.Success {
+		t.Fatalf("expected full key redisplay to fail")
 	}
-
-	var keyData tokenKeyResponse
-	if err := common.Unmarshal(authorizedResponse.Data, &keyData); err != nil {
-		t.Fatalf("failed to decode token key response: %v", err)
-	}
-	if keyData.Key != token.GetFullKey() {
-		t.Fatalf("expected full key %q, got %q", token.GetFullKey(), keyData.Key)
+	if strings.Contains(authorizedRecorder.Body.String(), "owner1234token5678") {
+		t.Fatalf("key redisplay response leaked raw token key")
 	}
 
 	unauthorizedCtx, unauthorizedRecorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/"+strconv.Itoa(token.Id)+"/key", nil, 2)
@@ -535,7 +588,34 @@ func TestGetTokenKeyRequiresOwnershipAndReturnsFullKey(t *testing.T) {
 	if unauthorizedResponse.Success {
 		t.Fatalf("expected unauthorized key fetch to fail")
 	}
-	if strings.Contains(unauthorizedRecorder.Body.String(), token.Key) {
+	if strings.Contains(unauthorizedRecorder.Body.String(), "owner1234token5678") {
 		t.Fatalf("unauthorized key response leaked raw token key: %s", unauthorizedRecorder.Body.String())
+	}
+}
+
+func TestGetTokenUsageErrorLogDoesNotLeakFullKey(t *testing.T) {
+	setupTokenControllerTestDB(t)
+	rawKey := "usage-log-secret-token"
+	var logBuffer bytes.Buffer
+
+	common.LogWriterMu.Lock()
+	originalErrorWriter := gin.DefaultErrorWriter
+	gin.DefaultErrorWriter = &logBuffer
+	common.LogWriterMu.Unlock()
+	t.Cleanup(func() {
+		common.LogWriterMu.Lock()
+		gin.DefaultErrorWriter = originalErrorWriter
+		common.LogWriterMu.Unlock()
+	})
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodGet, "/api/token/usage", nil, 1)
+	ctx.Request.Header.Set("Authorization", "Bearer sk-"+rawKey)
+	GetTokenUsage(ctx)
+
+	if strings.Contains(logBuffer.String(), rawKey) {
+		t.Fatalf("error log leaked raw token key: %s", logBuffer.String())
+	}
+	if strings.Contains(recorder.Body.String(), rawKey) {
+		t.Fatalf("usage response leaked raw token key: %s", recorder.Body.String())
 	}
 }

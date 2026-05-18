@@ -130,6 +130,16 @@ func withSelfUseModeDisabled(t *testing.T) {
 	})
 }
 
+func withSelfUseModeEnabled(t *testing.T) {
+	t.Helper()
+
+	original := operation_setting.SelfUseModeEnabled
+	operation_setting.SelfUseModeEnabled = true
+	t.Cleanup(func() {
+		operation_setting.SelfUseModeEnabled = original
+	})
+}
+
 func decodeListModelsResponse(t *testing.T, recorder *httptest.ResponseRecorder) map[string]struct{} {
 	t.Helper()
 
@@ -144,6 +154,47 @@ func decodeListModelsResponse(t *testing.T, recorder *httptest.ResponseRecorder)
 		ids[item.Id] = struct{}{}
 	}
 	return ids
+}
+
+func TestAUD025ListModelsExperimentalVisibilityByUserScope(t *testing.T) {
+	withSelfUseModeEnabled(t)
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.Create(&[]model.User{
+		{Id: 2501, Username: "aud025-normal", Group: "default", Status: common.UserStatusEnabled, AffCode: "aud025-normal"},
+		{Id: 2502, Username: "aud025-internal", Group: "internal", Status: common.UserStatusEnabled, AffCode: "aud025-internal"},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Channel{
+		{Id: 25001, Name: "aud025-official", Type: constant.ChannelTypeOpenAI, Status: common.ChannelStatusEnabled, ProviderType: constant.ProviderTypeOfficialCloud},
+		{Id: 25002, Name: "aud025-experimental", Type: constant.ChannelTypeKiroGateway, Status: common.ChannelStatusEnabled, ProviderType: constant.ProviderTypeExperimentalProxy},
+	}).Error)
+	require.NoError(t, db.Create(&[]model.Ability{
+		{Group: "default", Model: "aud025-official-model", ChannelId: 25001, Enabled: true},
+		{Group: "default", Model: "aud025-experimental-model", ChannelId: 25002, Enabled: true},
+		{Group: "internal", Model: "aud025-experimental-model", ChannelId: 25002, Enabled: true},
+	}).Error)
+
+	normalRecorder := httptest.NewRecorder()
+	normalCtx, _ := gin.CreateTestContext(normalRecorder)
+	normalCtx.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	normalCtx.Set("id", 2501)
+	common.SetContextKey(normalCtx, constant.ContextKeyUserGroup, "default")
+	common.SetContextKey(normalCtx, constant.ContextKeyTokenAllowExperimental, false)
+
+	ListModels(normalCtx, constant.ChannelTypeOpenAI)
+	normalIDs := decodeListModelsResponse(t, normalRecorder)
+	require.Contains(t, normalIDs, "aud025-official-model")
+	require.NotContains(t, normalIDs, "aud025-experimental-model")
+
+	internalRecorder := httptest.NewRecorder()
+	internalCtx, _ := gin.CreateTestContext(internalRecorder)
+	internalCtx.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	internalCtx.Set("id", 2502)
+	common.SetContextKey(internalCtx, constant.ContextKeyUserGroup, "internal")
+	common.SetContextKey(internalCtx, constant.ContextKeyTokenAllowExperimental, true)
+
+	ListModels(internalCtx, constant.ChannelTypeOpenAI)
+	internalIDs := decodeListModelsResponse(t, internalRecorder)
+	require.Contains(t, internalIDs, "aud025-experimental-model")
 }
 
 func pricingByModelName(pricings []model.Pricing) map[string]model.Pricing {
@@ -172,6 +223,13 @@ func TestListModelsIncludesTieredBillingModel(t *testing.T) {
 		Password: "password",
 		Group:    "default",
 		Status:   common.UserStatusEnabled,
+	}).Error)
+	require.NoError(t, db.Create(&model.Channel{
+		Id:           1,
+		Name:         "model-list-official-channel",
+		Type:         constant.ChannelTypeOpenAI,
+		Status:       common.ChannelStatusEnabled,
+		ProviderType: constant.ProviderTypeOfficialCloud,
 	}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "zz-tiered-visible-model", ChannelId: 1, Enabled: true},

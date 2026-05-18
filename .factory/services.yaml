@@ -1,0 +1,29 @@
+services:
+  api:
+    description: "Go backend — AI API Gateway"
+    start: "go run . --port 3000"
+    build: "go build -o new-api ."
+    test: "go test ./..."
+    port: 3000
+    health_check: "GET /api/status"
+    env_file: ".env"
+
+  frontend:
+    description: "React 19 admin dashboard (default theme)"
+    root: "web/default"
+    start: "bun run dev"
+    build: "bun run build"
+    test: "bun run test"
+    port: 3001
+    package_manager: bun
+
+  db:
+    description: "SQLite (dev default) / MySQL / PostgreSQL"
+    dev_default: sqlite
+    dev_path: "data/new-api.db"
+    migration: "auto — GORM AutoMigrate on startup"
+
+  redis:
+    description: "Optional cache layer"
+    required: false
+    env: "REDIS_CONN_STRING"

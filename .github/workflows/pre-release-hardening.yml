@@ -1,0 +1,119 @@
+name: Pre-release hardening
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pre-release-hardening.yml'
+      - 'common/**'
+      - 'controller/**'
+      - 'middleware/**'
+      - 'model/**'
+      - 'relay/**'
+      - 'router/**'
+      - 'service/**'
+      - 'scripts/**'
+      - 'tests/migration/**'
+      - 'web/default/**'
+      - 'docker-compose*.yml'
+      - 'go.mod'
+      - 'go.sum'
+
+jobs:
+  backend-local-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+      - run: go test ./... -count=1
+      - run: go vet ./...
+      - run: LOCAL_FIXTURE=1 bash scripts/regression.sh
+      - run: docker compose config
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/default
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build
+
+  migration-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+      - run: bash scripts/check-migrations.sh
+
+  migration-mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: new_api_migration
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+      - run: bash scripts/check-migrations.sh
+        env:
+          SQL_DSN: root:rootpass@tcp(127.0.0.1:3306)/new_api_migration?charset=utf8mb4&parseTime=true
+
+  migration-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: new_api_migration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d new_api_migration"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+      - run: bash scripts/check-migrations.sh
+        env:
+          SQL_DSN: postgresql://postgres:postgres@127.0.0.1:5432/new_api_migration?sslmode=disable
+
+  docker-runtime-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.fixture.yml config
+      - run: docker compose -f docker-compose.fixture.yml up -d --build
+      - run: |
+          ADMIN_LINE="$(BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh | tail -n 1)"
+          eval "$ADMIN_LINE"
+          BASE_URL=http://localhost:3000 ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/regression.sh
+      - if: always()
+        run: docker compose -f docker-compose.fixture.yml down -v

@@ -1,0 +1,1252 @@
+[
+  {
+    "id": "F0.1",
+    "milestone": "M0",
+    "worker": "repo-discovery-worker",
+    "description": "Map /v1/chat/completions call chain; identify all files relevant to secondary development; produce .factory/library/ knowledge base.",
+    "scope": "read-only analysis",
+    "files_to_inspect": [
+      "router/relay-router.go",
+      "middleware/auth.go",
+      "middleware/distributor.go",
+      "controller/relay.go",
+      "relay/compatible_handler.go",
+      "relay/channel/adapter.go",
+      "service/billing_session.go",
+      "service/quota.go",
+      "model/channel.go",
+      "model/user.go",
+      "model/token.go",
+      "model/log.go",
+      "constant/channel.go",
+      "model/main.go"
+    ],
+    "files_to_modify": [
+      ".factory/library/architecture.md",
+      ".factory/library/environment.md",
+      ".factory/library/user-testing.md"
+    ],
+    "preconditions": [],
+    "implementation_steps": [
+      "Read all key files listed in files_to_inspect",
+      "Trace call chain from HTTP entry to billing",
+      "Document findings in .factory/library/"
+    ],
+    "verification_steps": [
+      "All three .factory/library/ files exist and are non-empty"
+    ],
+    "fulfills": [
+      "A3.2.2"
+    ],
+    "done_definition": ".factory/library/ files created; call chain documented",
+    "risk_notes": "Read-only; no risk",
+    "status": "done"
+  },
+  {
+    "id": "F1.1",
+    "milestone": "M1",
+    "worker": "db-migration-worker",
+    "description": "Add provider_type, risk_level, available_scope, visibility, manual_enable_required fields to model.Channel struct with GORM defaults.",
+    "scope": "model/channel.go",
+    "files_to_inspect": [
+      "model/channel.go",
+      "model/main.go",
+      "constant/channel.go"
+    ],
+    "files_to_modify": [
+      "model/channel.go"
+    ],
+    "preconditions": [
+      "F0.1 done"
+    ],
+    "implementation_steps": [
+      "Add ProviderType string field with gorm default 'official_cloud'",
+      "Add RiskLevel string field with gorm default 'normal'",
+      "Add AvailableScope string field with gorm default 'public'",
+      "Add Visibility string field with gorm default 'public'",
+      "Add ManualEnableRequired bool field with gorm default false",
+      "Ensure all fields use pointer or have explicit defaults for backward compat"
+    ],
+    "verification_steps": [
+      "go build ./model/...",
+      "go test ./model/... -run TestChannel"
+    ],
+    "fulfills": [
+      "A1.1.1",
+      "A1.1.3"
+    ],
+    "done_definition": "Channel struct has all 5 new fields; go build passes",
+    "risk_notes": "Adding nullable columns is safe; do not add NOT NULL without defaults",
+    "status": "pending"
+  },
+  {
+    "id": "F1.2",
+    "milestone": "M1",
+    "worker": "db-migration-worker",
+    "description": "Ensure AutoMigrate adds new Channel columns on SQLite, MySQL, PostgreSQL; backfill existing rows with provider_type='official_cloud'.",
+    "scope": "model/main.go",
+    "files_to_inspect": [
+      "model/main.go",
+      "model/channel.go"
+    ],
+    "files_to_modify": [
+      "model/main.go"
+    ],
+    "preconditions": [
+      "F1.1 done"
+    ],
+    "implementation_steps": [
+      "Verify Channel is in AutoMigrate list in model/main.go",
+      "Add post-migration UPDATE to set provider_type='official_cloud' where provider_type IS NULL or empty",
+      "Test against all three DB drivers"
+    ],
+    "verification_steps": [
+      "go test ./model/... -run TestMigrate",
+      "DB query confirms new columns exist",
+      "Existing rows have provider_type='official_cloud'"
+    ],
+    "fulfills": [
+      "A1.2.1",
+      "A1.2.2"
+    ],
+    "done_definition": "AutoMigrate passes on all three DBs; backfill complete",
+    "risk_notes": "UPDATE backfill must use WHERE to avoid touching rows already set",
+    "status": "pending"
+  },
+  {
+    "id": "F2.1",
+    "milestone": "M2",
+    "worker": "provider-worker",
+    "description": "Create ProviderAccount model: id, name, provider_type, encrypted_key, created_at. Key encrypted via common/crypto.go AES.",
+    "scope": "model/provider_account.go (new file)",
+    "files_to_inspect": [
+      "model/channel.go",
+      "model/main.go",
+      "common/crypto.go"
+    ],
+    "files_to_modify": [
+      "model/provider_account.go",
+      "model/main.go"
+    ],
+    "preconditions": [
+      "F1.2 done"
+    ],
+    "implementation_steps": [
+      "Create model/provider_account.go with ProviderAccount struct",
+      "Add BeforeSave hook to encrypt Key field using common.EncryptKey",
+      "Add AfterFind hook to decrypt Key field",
+      "Add ProviderAccount to AutoMigrate list",
+      "Add CRUD functions: CreateProviderAccount, GetProviderAccountById, DeleteProviderAccount"
+    ],
+    "verification_steps": [
+      "go test ./model/... -run TestProviderAccount",
+      "DB shows encrypted value, not plaintext key"
+    ],
+    "fulfills": [
+      "A2.1.1",
+      "A2.1.2",
+      "A2.1.3"
+    ],
+    "done_definition": "ProviderAccount table exists; key stored encrypted; CRUD works",
+    "risk_notes": "Never log decrypted key; ensure CRYPTO_SECRET env var is set",
+    "status": "pending"
+  },
+  {
+    "id": "F2.2",
+    "milestone": "M2",
+    "worker": "db-migration-worker",
+    "description": "Add nullable ProviderAccountId foreign key to Channel model; existing channels with NULL value continue to work.",
+    "scope": "model/channel.go",
+    "files_to_inspect": [
+      "model/channel.go",
+      "model/provider_account.go"
+    ],
+    "files_to_modify": [
+      "model/channel.go",
+      "model/main.go"
+    ],
+    "preconditions": [
+      "F2.1 done"
+    ],
+    "implementation_steps": [
+      "Add ProviderAccountId *int field to Channel struct",
+      "Do NOT add FK constraint (cross-DB compat); use application-level join",
+      "AutoMigrate adds nullable column"
+    ],
+    "verification_steps": [
+      "go build ./...",
+      "Existing channel queries unaffected"
+    ],
+    "fulfills": [
+      "A2.2.1",
+      "A2.2.2"
+    ],
+    "done_definition": "channels table has provider_account_id nullable column; no regression",
+    "risk_notes": "No FK constraint to avoid SQLite limitations",
+    "status": "pending"
+  },
+  {
+    "id": "F3.1",
+    "milestone": "M3",
+    "worker": "test-validation-worker",
+    "description": "Regression: GET /v1/models returns 200 with model list after M1/M2 migrations.",
+    "scope": "test only",
+    "files_to_inspect": [
+      "router/relay-router.go",
+      "controller/model.go",
+      "middleware/auth.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F2.2 done",
+      "at least one enabled channel exists"
+    ],
+    "implementation_steps": [
+      "Write integration test or curl script for GET /v1/models",
+      "Assert HTTP 200 and non-empty data array",
+      "Assert 401 for missing token"
+    ],
+    "verification_steps": [
+      "Test passes",
+      "go test ./... no regression"
+    ],
+    "fulfills": [
+      "A3.1.1",
+      "A3.1.2"
+    ],
+    "done_definition": "GET /v1/models returns 200; 401 for bad token",
+    "risk_notes": "Requires running server or test harness with DB",
+    "status": "pending"
+  },
+  {
+    "id": "F3.2",
+    "milestone": "M3",
+    "worker": "test-validation-worker",
+    "description": "Regression: POST /v1/chat/completions returns 200 with usage after M1/M2 migrations.",
+    "scope": "test only",
+    "files_to_inspect": [
+      "controller/relay.go",
+      "relay/compatible_handler.go",
+      "service/billing_session.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F3.1 done",
+      "upstream channel configured"
+    ],
+    "implementation_steps": [
+      "Write integration test for POST /v1/chat/completions",
+      "Assert HTTP 200, choices array present, usage.prompt_tokens > 0",
+      "Run go test ./... and confirm no FAIL"
+    ],
+    "verification_steps": [
+      "Test passes",
+      "go test ./... exits 0"
+    ],
+    "fulfills": [
+      "A3.2.1",
+      "A3.2.2"
+    ],
+    "done_definition": "chat/completions returns 200 with usage; all existing tests pass",
+    "risk_notes": "May need mock upstream or real API key for integration test",
+    "status": "pending"
+  },
+  {
+    "id": "F4.1",
+    "milestone": "M4",
+    "worker": "provider-worker",
+    "description": "Add GetDefaultProviderType(channelType int) helper; wire into Channel creation to auto-set provider_type for known types.",
+    "scope": "constant/channel.go, model/channel.go",
+    "files_to_inspect": [
+      "constant/channel.go",
+      "model/channel.go"
+    ],
+    "files_to_modify": [
+      "constant/channel.go",
+      "model/channel.go"
+    ],
+    "preconditions": [
+      "F1.2 done"
+    ],
+    "implementation_steps": [
+      "Add ChannelTypeDefaultProviderType map in constant/channel.go",
+      "Map official types (OpenAI=1, Azure=3, Anthropic=14, Gemini=24, etc.) to 'official_cloud'",
+      "Map aggregator types (OpenRouter=20, etc.) to 'aggregator'",
+      "Add BeforeCreate hook in Channel to set ProviderType from map if empty"
+    ],
+    "verification_steps": [
+      "go test ./model/... -run TestChannelDefaultProviderType",
+      "DB backfill query confirms correct values"
+    ],
+    "fulfills": [
+      "A4.1.1",
+      "A4.1.2"
+    ],
+    "done_definition": "Known channel types auto-get correct provider_type on create",
+    "risk_notes": "BeforeCreate hook must not override explicitly set provider_type",
+    "status": "pending"
+  },
+  {
+    "id": "F4.2",
+    "milestone": "M4",
+    "worker": "provider-worker",
+    "description": "Channel create/update API accepts and returns provider_type field.",
+    "scope": "controller/channel.go, dto/",
+    "files_to_inspect": [
+      "controller/channel.go",
+      "dto/channel.go"
+    ],
+    "files_to_modify": [
+      "controller/channel.go",
+      "dto/channel.go"
+    ],
+    "preconditions": [
+      "F4.1 done"
+    ],
+    "implementation_steps": [
+      "Ensure ChannelRequest DTO includes ProviderType field",
+      "Ensure GET /api/channel response includes provider_type",
+      "Add validation: provider_type must be one of the four allowed values"
+    ],
+    "verification_steps": [
+      "curl POST /api/channel with provider_type=aggregator returns 200",
+      "curl GET /api/channel/:id returns provider_type field"
+    ],
+    "fulfills": [
+      "A4.2.1",
+      "A4.2.2"
+    ],
+    "done_definition": "Channel CRUD API accepts and returns provider_type",
+    "risk_notes": "Validate provider_type enum to prevent invalid values",
+    "status": "pending"
+  },
+  {
+    "id": "F5.1",
+    "milestone": "M5",
+    "worker": "routing-security-worker",
+    "description": "Channel selection (service/channel_select.go) excludes experimental_proxy from default pool; only includes it when explicitly requested.",
+    "scope": "service/channel_select.go",
+    "files_to_inspect": [
+      "service/channel_select.go",
+      "service/channel_affinity.go",
+      "middleware/distributor.go"
+    ],
+    "files_to_modify": [
+      "service/channel_select.go"
+    ],
+    "preconditions": [
+      "F4.2 done"
+    ],
+    "implementation_steps": [
+      "Add excludeExperimental bool param to channel selection query",
+      "Default: exclude channels where provider_type='experimental_proxy'",
+      "Only include experimental_proxy when caller explicitly opts in (internal user path)"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestSelectChannel",
+      "experimental_proxy channel not returned in default selection"
+    ],
+    "fulfills": [
+      "A5.1.1",
+      "A5.1.2"
+    ],
+    "done_definition": "experimental_proxy excluded from default channel pool",
+    "risk_notes": "Must not break existing channel affinity / weight logic",
+    "status": "pending"
+  },
+  {
+    "id": "F5.2",
+    "milestone": "M5",
+    "worker": "billing-worker",
+    "description": "Ensure pricing/quota calculation does not panic for channels with new provider_type values.",
+    "scope": "service/quota.go, service/text_quota.go",
+    "files_to_inspect": [
+      "service/quota.go",
+      "service/text_quota.go",
+      "service/billing_session.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F4.2 done"
+    ],
+    "implementation_steps": [
+      "Review GetQuotaByChannel for any channel-type-specific branches",
+      "Ensure no switch/case panics on unknown provider_type",
+      "Add unit test covering all four provider_type values"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestQuotaByProviderType"
+    ],
+    "fulfills": [
+      "A5.2.1"
+    ],
+    "done_definition": "Quota calculation works for all four provider_type values",
+    "risk_notes": "Low risk — mostly read-only verification",
+    "status": "pending"
+  },
+  {
+    "id": "F6.1",
+    "milestone": "M6",
+    "worker": "provider-worker",
+    "description": "Add ChannelTypeKiroGateway constant (value 58) to constant/channel.go with name and base URL.",
+    "scope": "constant/channel.go",
+    "files_to_inspect": [
+      "constant/channel.go"
+    ],
+    "files_to_modify": [
+      "constant/channel.go"
+    ],
+    "preconditions": [
+      "F4.2 done"
+    ],
+    "implementation_steps": [
+      "Add ChannelTypeKiroGateway = 58 before ChannelTypeDummy",
+      "Add 'KiroGateway' to ChannelTypeNames map",
+      "Add placeholder base URL to ChannelBaseURLs slice",
+      "Add to ChannelTypeDefaultProviderType map as 'experimental_proxy'"
+    ],
+    "verification_steps": [
+      "go build ./constant/...",
+      "constant.ChannelTypeNames[58] == 'KiroGateway'"
+    ],
+    "fulfills": [
+      "A6.1.1",
+      "A6.1.2"
+    ],
+    "done_definition": "ChannelTypeKiroGateway defined; name and base URL registered",
+    "risk_notes": "Value 58 must not conflict; ChannelTypeDummy must remain last",
+    "status": "pending"
+  },
+  {
+    "id": "F6.2",
+    "milestone": "M6",
+    "worker": "provider-worker",
+    "description": "Implement KiroGatewayAdaptor struct in relay/channel/kiro/ satisfying the Adaptor interface. Skeleton only — DoRequest proxies to configured base URL.",
+    "scope": "relay/channel/kiro/ (new directory)",
+    "files_to_inspect": [
+      "relay/channel/adapter.go",
+      "relay/channel/openai/adaptor.go",
+      "relay/channel/api_request.go"
+    ],
+    "files_to_modify": [
+      "relay/channel/kiro/adaptor.go"
+    ],
+    "preconditions": [
+      "F6.1 done"
+    ],
+    "implementation_steps": [
+      "Create relay/channel/kiro/adaptor.go",
+      "Embed or delegate to openai adaptor for OpenAI-compatible upstream",
+      "Implement GetChannelName() returning 'KiroGateway'",
+      "Implement GetModelList() returning configured models",
+      "Add compile-time interface check: var _ channel.Adaptor = (*KiroGatewayAdaptor)(nil)"
+    ],
+    "verification_steps": [
+      "go build ./relay/channel/kiro/...",
+      "Interface compliance check compiles"
+    ],
+    "fulfills": [
+      "A6.2.1",
+      "A6.2.2"
+    ],
+    "done_definition": "KiroGatewayAdaptor compiles and satisfies Adaptor interface",
+    "risk_notes": "Skeleton only — actual upstream integration is out of scope for M6",
+    "status": "pending"
+  },
+  {
+    "id": "F6.3",
+    "milestone": "M6",
+    "worker": "provider-worker",
+    "description": "Register KiroGatewayAdaptor in relay/relay_adaptor.go GetAdaptor factory switch.",
+    "scope": "relay/relay_adaptor.go",
+    "files_to_inspect": [
+      "relay/relay_adaptor.go"
+    ],
+    "files_to_modify": [
+      "relay/relay_adaptor.go"
+    ],
+    "preconditions": [
+      "F6.2 done"
+    ],
+    "implementation_steps": [
+      "Add case constant.ChannelTypeKiroGateway in GetAdaptor switch",
+      "Return &kiro.KiroGatewayAdaptor{}"
+    ],
+    "verification_steps": [
+      "go build ./...",
+      "go test -run TestGetAdaptor returns non-nil for type 58"
+    ],
+    "fulfills": [
+      "A6.3.1"
+    ],
+    "done_definition": "GetAdaptor(58) returns non-nil; go build passes",
+    "risk_notes": "Low risk — additive change only",
+    "status": "pending"
+  },
+  {
+    "id": "F7.1",
+    "milestone": "M7",
+    "worker": "routing-security-worker",
+    "description": "Define isInternalUser helper: returns true when user.Group == 'internal'. Add 'internal' group to allowed groups list.",
+    "scope": "service/group.go or middleware/distributor.go",
+    "files_to_inspect": [
+      "service/group.go",
+      "middleware/distributor.go",
+      "model/user.go"
+    ],
+    "files_to_modify": [
+      "service/group.go"
+    ],
+    "preconditions": [
+      "F5.1 done"
+    ],
+    "implementation_steps": [
+      "Add const InternalGroup = 'internal' in service or constant package",
+      "Add IsInternalUser(user *model.UserBase) bool helper",
+      "Add unit test for IsInternalUser"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestIsInternalUser"
+    ],
+    "fulfills": [
+      "A7.1.1",
+      "A7.1.2"
+    ],
+    "done_definition": "IsInternalUser returns correct result for internal and default groups",
+    "risk_notes": "Group name 'internal' must be documented; admin must set it manually",
+    "status": "pending"
+  },
+  {
+    "id": "F7.2",
+    "milestone": "M7",
+    "worker": "routing-security-worker",
+    "description": "In Distribute middleware, after channel selection, reject non-internal users attempting to use experimental_proxy channels with HTTP 403.",
+    "scope": "middleware/distributor.go",
+    "files_to_inspect": [
+      "middleware/distributor.go",
+      "service/channel_select.go",
+      "model/channel.go"
+    ],
+    "files_to_modify": [
+      "middleware/distributor.go"
+    ],
+    "preconditions": [
+      "F7.1 done",
+      "F5.1 done"
+    ],
+    "implementation_steps": [
+      "After channel is selected, check channel.ProviderType == 'experimental_proxy'",
+      "If so, call IsInternalUser(user); if false, abort with 403 and error code 'experimental_proxy_forbidden'",
+      "If user is internal but channel.ManualEnableRequired && channel.Status != enabled, abort with 403",
+      "Add integration test"
+    ],
+    "verification_steps": [
+      "Normal user gets 403 on experimental_proxy model",
+      "Internal user with enabled channel gets 200"
+    ],
+    "fulfills": [
+      "A7.2.1",
+      "A7.2.2"
+    ],
+    "done_definition": "Access control enforced in Distribute; tests pass",
+    "risk_notes": "Must not affect non-experimental_proxy channels; error message must not leak channel details",
+    "status": "pending"
+  },
+  {
+    "id": "F7.3",
+    "milestone": "M7",
+    "worker": "db-migration-worker",
+    "description": "Ensure channels created with provider_type='experimental_proxy' default to Status=disabled and ManualEnableRequired=true.",
+    "scope": "model/channel.go",
+    "files_to_inspect": [
+      "model/channel.go"
+    ],
+    "files_to_modify": [
+      "model/channel.go"
+    ],
+    "preconditions": [
+      "F4.1 done"
+    ],
+    "implementation_steps": [
+      "Add BeforeCreate hook logic: if ProviderType == 'experimental_proxy', set Status=2 (disabled) and ManualEnableRequired=true",
+      "Add unit test verifying defaults"
+    ],
+    "verification_steps": [
+      "go test ./model/... -run TestExperimentalProxyDefaults",
+      "DB row has status=2 after create"
+    ],
+    "fulfills": [
+      "A7.3.1",
+      "A7.3.2"
+    ],
+    "done_definition": "experimental_proxy channels created with status=disabled by default",
+    "risk_notes": "BeforeCreate hook must only apply to experimental_proxy type",
+    "status": "pending"
+  },
+  {
+    "id": "F8.1",
+    "milestone": "M8",
+    "worker": "routing-security-worker",
+    "description": "Ensure retry/fallback loop in controller/relay.go never selects experimental_proxy as a fallback when official_cloud channels fail.",
+    "scope": "controller/relay.go, service/channel_select.go",
+    "files_to_inspect": [
+      "controller/relay.go",
+      "service/channel_select.go",
+      "middleware/distributor.go"
+    ],
+    "files_to_modify": [
+      "controller/relay.go"
+    ],
+    "preconditions": [
+      "F7.2 done"
+    ],
+    "implementation_steps": [
+      "Review retry loop in controller/relay.go",
+      "Pass excludeExperimental=true flag to channel re-selection on retry",
+      "Add unit test: when official_cloud fails, retry does not return experimental_proxy channel"
+    ],
+    "verification_steps": [
+      "go test ./controller/... -run TestNoFallbackToExperimental",
+      "Integration: official_cloud failure returns 503, not experimental_proxy response"
+    ],
+    "fulfills": [
+      "A8.1.1",
+      "A8.1.2"
+    ],
+    "done_definition": "Retry loop never falls back to experimental_proxy; returns 503 when all official channels fail",
+    "risk_notes": "Must not break existing retry logic for non-experimental channels",
+    "status": "pending"
+  },
+  {
+    "id": "F8.2",
+    "milestone": "M8",
+    "worker": "routing-security-worker",
+    "description": "Admin can disable experimental_proxy channel via PATCH /api/channel/:id status=2; cache is invalidated immediately.",
+    "scope": "controller/channel.go, model/channel_cache.go",
+    "files_to_inspect": [
+      "controller/channel.go",
+      "model/channel_cache.go"
+    ],
+    "files_to_modify": [
+      "controller/channel.go",
+      "model/channel_cache.go"
+    ],
+    "preconditions": [
+      "F7.3 done"
+    ],
+    "implementation_steps": [
+      "Verify existing channel status update API works for experimental_proxy channels",
+      "Ensure channel cache is invalidated on status change",
+      "Add test: after disable, subsequent requests return 503/no-channel"
+    ],
+    "verification_steps": [
+      "PATCH /api/channel/:id {status:2} returns 200",
+      "Next request to that channel's model returns 503"
+    ],
+    "fulfills": [
+      "A8.2.1",
+      "A8.2.2"
+    ],
+    "done_definition": "One-click disable works; cache invalidated; requests blocked immediately",
+    "risk_notes": "Cache TTL must be short or invalidated on write",
+    "status": "pending"
+  },
+  {
+    "id": "F9.1",
+    "milestone": "M9",
+    "worker": "db-migration-worker",
+    "description": "Create Organization stub model: id, name, status, created_at. AutoMigrate on all three DBs.",
+    "scope": "model/organization.go (new file)",
+    "files_to_inspect": [
+      "model/main.go",
+      "model/user.go"
+    ],
+    "files_to_modify": [
+      "model/organization.go",
+      "model/main.go"
+    ],
+    "preconditions": [
+      "F2.2 done"
+    ],
+    "implementation_steps": [
+      "Create model/organization.go with Organization struct",
+      "Fields: Id int, Name string, Status int default 1, CreatedAt int64",
+      "Add to AutoMigrate list",
+      "Add stub CRUD: CreateOrganization, GetOrganizationById"
+    ],
+    "verification_steps": [
+      "go build ./model/...",
+      "DB table organizations exists after migrate"
+    ],
+    "fulfills": [
+      "A9.1.1",
+      "A9.1.2"
+    ],
+    "done_definition": "organizations table created; no existing functionality broken",
+    "risk_notes": "Stub only — no business logic; no FK constraints yet",
+    "status": "pending"
+  },
+  {
+    "id": "F9.2",
+    "milestone": "M9",
+    "worker": "db-migration-worker",
+    "description": "Create Project stub model: id, org_id, name, status, created_at. AutoMigrate on all three DBs.",
+    "scope": "model/project.go (new file)",
+    "files_to_inspect": [
+      "model/main.go",
+      "model/organization.go"
+    ],
+    "files_to_modify": [
+      "model/project.go",
+      "model/main.go"
+    ],
+    "preconditions": [
+      "F9.1 done"
+    ],
+    "implementation_steps": [
+      "Create model/project.go with Project struct",
+      "Fields: Id int, OrgId int (nullable), Name string, Status int default 1, CreatedAt int64",
+      "No FK constraint on OrgId (cross-DB compat)",
+      "Add to AutoMigrate list"
+    ],
+    "verification_steps": [
+      "go build ./model/...",
+      "DB table projects exists after migrate"
+    ],
+    "fulfills": [
+      "A9.2.1",
+      "A9.2.2"
+    ],
+    "done_definition": "projects table created; no existing functionality broken",
+    "risk_notes": "No FK constraint to maintain SQLite compatibility",
+    "status": "pending"
+  },
+  {
+    "id": "F10.1",
+    "milestone": "M10",
+    "worker": "db-migration-worker",
+    "description": "Add nullable OrgId and ProjectId fields to Token model for future org/project scoping.",
+    "scope": "model/token.go",
+    "files_to_inspect": [
+      "model/token.go",
+      "model/main.go"
+    ],
+    "files_to_modify": [
+      "model/token.go"
+    ],
+    "preconditions": [
+      "F9.2 done"
+    ],
+    "implementation_steps": [
+      "Add OrgId *int and ProjectId *int to Token struct",
+      "Both nullable, no FK constraint",
+      "AutoMigrate adds columns"
+    ],
+    "verification_steps": [
+      "go build ./model/...",
+      "Existing token auth unaffected",
+      "DB columns exist"
+    ],
+    "fulfills": [
+      "A10.1.1",
+      "A10.1.2"
+    ],
+    "done_definition": "tokens table has org_id and project_id nullable columns",
+    "risk_notes": "Must not break existing token authentication flow",
+    "status": "pending"
+  },
+  {
+    "id": "F10.2",
+    "milestone": "M10",
+    "worker": "routing-security-worker",
+    "description": "Verify and document that Token.Key is stored as hash (not plaintext). Add unit test asserting no plaintext sk- key in DB.",
+    "scope": "model/token.go, middleware/auth.go",
+    "files_to_inspect": [
+      "model/token.go",
+      "middleware/auth.go",
+      "common/crypto.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F10.1 done"
+    ],
+    "implementation_steps": [
+      "Read token creation flow to confirm hashing",
+      "Add unit test: create token, query DB, assert stored key != raw key",
+      "Document hashing scheme in .factory/library/architecture.md"
+    ],
+    "verification_steps": [
+      "go test ./model/... -run TestTokenKeyHash",
+      "DB query shows no plaintext sk- value"
+    ],
+    "fulfills": [
+      "A10.2.1",
+      "A10.2.2"
+    ],
+    "done_definition": "Unit test confirms key is hashed in DB",
+    "risk_notes": "Read-only verification; if plaintext found, escalate immediately",
+    "status": "pending"
+  },
+  {
+    "id": "F11.1",
+    "milestone": "M11",
+    "worker": "billing-worker",
+    "description": "Add provider_type varchar column to Log model; populate from channel info during RecordConsumeLog.",
+    "scope": "model/log.go, service/log_info_generate.go",
+    "files_to_inspect": [
+      "model/log.go",
+      "service/log_info_generate.go",
+      "service/billing_session.go"
+    ],
+    "files_to_modify": [
+      "model/log.go",
+      "service/log_info_generate.go"
+    ],
+    "preconditions": [
+      "F4.2 done"
+    ],
+    "implementation_steps": [
+      "Add ProviderType string field to Log struct with gorm index",
+      "In log creation path, set ProviderType from relayInfo.Channel.ProviderType",
+      "AutoMigrate adds column"
+    ],
+    "verification_steps": [
+      "go build ./model/...",
+      "go test ./model/... -run TestLog",
+      "DB logs table has provider_type column"
+    ],
+    "fulfills": [
+      "A11.1.1",
+      "A11.1.2"
+    ],
+    "done_definition": "logs table has provider_type; populated on each consume log",
+    "risk_notes": "Additive column; no existing log rows broken",
+    "status": "pending"
+  },
+  {
+    "id": "F11.2",
+    "milestone": "M11",
+    "worker": "billing-worker",
+    "description": "Enforce privacy policy: when STORE_FULL_TEXT_ENABLED=false (default), do not write prompt or completion text to log.Other.",
+    "scope": "service/log_info_generate.go",
+    "files_to_inspect": [
+      "service/log_info_generate.go",
+      "common/env.go"
+    ],
+    "files_to_modify": [
+      "service/log_info_generate.go"
+    ],
+    "preconditions": [
+      "F11.1 done"
+    ],
+    "implementation_steps": [
+      "Check STORE_FULL_TEXT_ENABLED env var (default false)",
+      "If false, omit prompt_text and completion_text keys from log.Other JSON",
+      "Always write prompt_tokens and completion_tokens counts",
+      "Add unit test for both settings"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestLogPrivacy",
+      "With flag=false: log.Other has no prompt/completion text",
+      "With flag=true: log.Other contains text"
+    ],
+    "fulfills": [
+      "A11.2.1",
+      "A11.2.2"
+    ],
+    "done_definition": "Privacy policy enforced; token counts always present; text omitted by default",
+    "risk_notes": "Default must be false; never change default to true without explicit user consent",
+    "status": "pending"
+  },
+  {
+    "id": "F12.1",
+    "milestone": "M12",
+    "worker": "billing-worker",
+    "description": "After successful relay, verify user.UsedQuota and token.UsedQuota are incremented by log.Quota.",
+    "scope": "service/quota.go, model/user.go, model/token.go",
+    "files_to_inspect": [
+      "service/quota.go",
+      "service/billing_session.go",
+      "model/user.go",
+      "model/token.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F11.2 done"
+    ],
+    "implementation_steps": [
+      "Trace quota deduction path from BillingSession.Settle to model updates",
+      "Add unit test: mock relay, assert user.UsedQuota += quota and token.UsedQuota += quota",
+      "Fix any gaps found in the trace"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestQuotaDeduction",
+      "DB user.used_quota increases after request"
+    ],
+    "fulfills": [
+      "A12.1.1",
+      "A12.1.2"
+    ],
+    "done_definition": "UsedQuota incremented correctly on both user and token after each request",
+    "risk_notes": "Race condition risk — ensure atomic DB update",
+    "status": "pending"
+  },
+  {
+    "id": "F12.2",
+    "milestone": "M12",
+    "worker": "billing-worker",
+    "description": "Integration test: POST /v1/chat/completions → DB log.quota > 0; BillingSession.Settle delta correct.",
+    "scope": "service/billing_session.go",
+    "files_to_inspect": [
+      "service/billing_session.go",
+      "service/pre_consume_quota.go",
+      "service/text_quota.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F12.1 done"
+    ],
+    "implementation_steps": [
+      "Write integration test with mock upstream returning known token counts",
+      "Assert log.Quota matches expected calculation",
+      "Assert BillingSession.Settle called with correct actualQuota"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestBillingSessionSettle"
+    ],
+    "fulfills": [
+      "A12.2.1",
+      "A12.2.2"
+    ],
+    "done_definition": "Billing session settle test passes with correct quota values",
+    "risk_notes": "Use mock upstream to avoid real API calls in tests",
+    "status": "pending"
+  },
+  {
+    "id": "F13.1",
+    "milestone": "M13",
+    "worker": "billing-worker",
+    "description": "PreConsumeQuota rejects requests when token.RemainQuota=0 and UnlimitedQuota=false; returns HTTP 402.",
+    "scope": "service/pre_consume_quota.go, middleware/distributor.go",
+    "files_to_inspect": [
+      "service/pre_consume_quota.go",
+      "middleware/distributor.go",
+      "model/token.go"
+    ],
+    "files_to_modify": [
+      "service/pre_consume_quota.go"
+    ],
+    "preconditions": [
+      "F12.2 done"
+    ],
+    "implementation_steps": [
+      "Verify PreConsumeQuota checks RemainQuota before proceeding",
+      "Return typed error that maps to HTTP 402 in relay error handler",
+      "Add unit test with zero-quota token"
+    ],
+    "verification_steps": [
+      "go test ./service/... -run TestPreConsumeQuotaInsufficient",
+      "Zero-quota token request returns 402/429"
+    ],
+    "fulfills": [
+      "A13.1.1",
+      "A13.1.2"
+    ],
+    "done_definition": "Zero-quota token blocked with 402; test passes",
+    "risk_notes": "Must not block unlimited_quota=true tokens",
+    "status": "pending"
+  },
+  {
+    "id": "F13.2",
+    "milestone": "M13",
+    "worker": "admin-ui-worker",
+    "description": "Admin manual top-up API: POST /api/user/topup increments user.Quota and writes LogTypeManage log entry.",
+    "scope": "controller/user.go, model/user.go",
+    "files_to_inspect": [
+      "controller/user.go",
+      "model/user.go",
+      "model/log.go"
+    ],
+    "files_to_modify": [
+      "controller/user.go"
+    ],
+    "preconditions": [
+      "F13.1 done"
+    ],
+    "implementation_steps": [
+      "Verify POST /api/user/topup endpoint exists and requires admin role",
+      "Ensure it calls model.IncreaseUserQuota atomically",
+      "Ensure it writes a LogTypeManage log entry with amount",
+      "Add unit test"
+    ],
+    "verification_steps": [
+      "POST /api/user/topup by admin returns 200",
+      "user.Quota increases by specified amount",
+      "Log entry type=3 exists"
+    ],
+    "fulfills": [
+      "A13.2.1",
+      "A13.2.2"
+    ],
+    "done_definition": "Admin top-up works; quota updated; log written",
+    "risk_notes": "Requires admin role check; must be atomic DB operation",
+    "status": "pending"
+  },
+  {
+    "id": "F14.1",
+    "milestone": "M14",
+    "worker": "admin-ui-worker",
+    "description": "GET /api/channel supports ?provider_type= filter; requires admin role for experimental_proxy filter.",
+    "scope": "controller/channel.go, model/channel.go",
+    "files_to_inspect": [
+      "controller/channel.go",
+      "model/channel.go"
+    ],
+    "files_to_modify": [
+      "controller/channel.go",
+      "model/channel.go"
+    ],
+    "preconditions": [
+      "F4.2 done"
+    ],
+    "implementation_steps": [
+      "Add provider_type query param to GetChannels model function",
+      "In controller, parse provider_type param and pass to model query",
+      "If provider_type=experimental_proxy, require admin role; return 403 otherwise"
+    ],
+    "verification_steps": [
+      "GET /api/channel?provider_type=official_cloud returns only official_cloud channels",
+      "GET /api/channel?provider_type=experimental_proxy by non-admin returns 403"
+    ],
+    "fulfills": [
+      "A14.1.1",
+      "A14.1.2"
+    ],
+    "done_definition": "Channel list filter by provider_type works; access control enforced",
+    "risk_notes": "Non-admin must never see experimental_proxy channels",
+    "status": "pending"
+  },
+  {
+    "id": "F14.2",
+    "milestone": "M14",
+    "worker": "admin-ui-worker",
+    "description": "GET /api/channel (default, no filter) excludes experimental_proxy channels for non-admin users.",
+    "scope": "controller/channel.go",
+    "files_to_inspect": [
+      "controller/channel.go",
+      "middleware/auth.go"
+    ],
+    "files_to_modify": [
+      "controller/channel.go"
+    ],
+    "preconditions": [
+      "F14.1 done"
+    ],
+    "implementation_steps": [
+      "In GetChannels handler, check caller role",
+      "If not admin, add WHERE provider_type != 'experimental_proxy' to query",
+      "Add unit test"
+    ],
+    "verification_steps": [
+      "Non-admin GET /api/channel returns no experimental_proxy rows",
+      "Admin GET /api/channel returns all rows"
+    ],
+    "fulfills": [
+      "A14.2.1",
+      "A14.2.2"
+    ],
+    "done_definition": "experimental_proxy hidden from non-admin channel list",
+    "risk_notes": "Must apply to all channel list endpoints, not just one",
+    "status": "pending"
+  },
+  {
+    "id": "F15.1",
+    "milestone": "M15",
+    "worker": "admin-ui-worker",
+    "description": "Admin API Key management: GET /api/token returns masked keys; DELETE /api/token/:id soft-deletes.",
+    "scope": "controller/token.go",
+    "files_to_inspect": [
+      "controller/token.go",
+      "model/token.go"
+    ],
+    "files_to_modify": [
+      "controller/token.go"
+    ],
+    "preconditions": [
+      "F10.2 done"
+    ],
+    "implementation_steps": [
+      "Verify GET /api/token returns token list with MaskedKey (not full key)",
+      "Verify DELETE /api/token/:id uses soft delete (gorm.DeletedAt)",
+      "Add unit tests for both endpoints"
+    ],
+    "verification_steps": [
+      "GET /api/token response has no full sk- key values",
+      "DELETE /api/token/:id sets deleted_at; token no longer authenticates"
+    ],
+    "fulfills": [
+      "A15.1.1",
+      "A15.1.2"
+    ],
+    "done_definition": "Token list returns masked keys; delete soft-deletes",
+    "risk_notes": "Never return full key after creation; mask in all list responses",
+    "status": "pending"
+  },
+  {
+    "id": "F15.2",
+    "milestone": "M15",
+    "worker": "admin-ui-worker",
+    "description": "Admin usage_log query: GET /api/log returns entries without prompt/completion text; supports token_id filter.",
+    "scope": "controller/log.go",
+    "files_to_inspect": [
+      "controller/log.go",
+      "model/log.go"
+    ],
+    "files_to_modify": [
+      "controller/log.go"
+    ],
+    "preconditions": [
+      "F11.2 done"
+    ],
+    "implementation_steps": [
+      "Verify GET /api/log strips prompt_text/completion_text from Other field before returning",
+      "Verify ?token_id= filter works",
+      "Add provider_type to response fields"
+    ],
+    "verification_steps": [
+      "GET /api/log response has no prompt_text field",
+      "GET /api/log?token_id=X filters correctly"
+    ],
+    "fulfills": [
+      "A15.2.1",
+      "A15.2.2"
+    ],
+    "done_definition": "usage_log API returns privacy-safe data with correct filters",
+    "risk_notes": "Admin-only endpoint; ensure role check present",
+    "status": "pending"
+  },
+  {
+    "id": "F15.3",
+    "milestone": "M15",
+    "worker": "admin-ui-worker",
+    "description": "Admin balance management: GET /api/user/:id returns quota/used_quota; top-up reflected immediately.",
+    "scope": "controller/user.go",
+    "files_to_inspect": [
+      "controller/user.go",
+      "model/user.go"
+    ],
+    "files_to_modify": [],
+    "preconditions": [
+      "F13.2 done"
+    ],
+    "implementation_steps": [
+      "Verify GET /api/user/:id returns quota and used_quota fields",
+      "Verify top-up via POST /api/user/topup is reflected in subsequent GET",
+      "Add integration test"
+    ],
+    "verification_steps": [
+      "GET /api/user/:id returns quota and used_quota",
+      "After top-up, GET shows updated quota"
+    ],
+    "fulfills": [
+      "A15.3.1",
+      "A15.3.2"
+    ],
+    "done_definition": "Balance visible and updated correctly via admin API",
+    "risk_notes": "Admin-only; user must not be able to top-up themselves",
+    "status": "pending"
+  },
+  {
+    "id": "F16.1",
+    "milestone": "M16",
+    "worker": "deployment-worker",
+    "description": "Verify docker-compose.dev.yml starts the full stack; GET /api/status returns 200 within 30s.",
+    "scope": "docker-compose.dev.yml, Dockerfile.dev",
+    "files_to_inspect": [
+      "docker-compose.dev.yml",
+      "Dockerfile.dev",
+      "Dockerfile"
+    ],
+    "files_to_modify": [
+      "docker-compose.dev.yml"
+    ],
+    "preconditions": [
+      "F15.3 done"
+    ],
+    "implementation_steps": [
+      "Review docker-compose.dev.yml for correctness",
+      "Ensure env vars for SQLite dev mode are set",
+      "Add health check to compose service",
+      "Test: docker compose up -d && sleep 30 && curl /api/status"
+    ],
+    "verification_steps": [
+      "docker compose -f docker-compose.dev.yml up -d exits 0",
+      "GET /api/status returns 200 within 30s"
+    ],
+    "fulfills": [
+      "A16.1.1"
+    ],
+    "done_definition": "Docker compose starts successfully; health check passes",
+    "risk_notes": "WSL2 path issues possible; test on Linux path",
+    "status": "pending"
+  },
+  {
+    "id": "F16.2",
+    "milestone": "M16",
+    "worker": "test-validation-worker",
+    "description": "Write .factory/smoke_test.sh covering: models list, chat completion, balance check, experimental_proxy block.",
+    "scope": ".factory/smoke_test.sh (new file)",
+    "files_to_inspect": [
+      ".factory/library/user-testing.md"
+    ],
+    "files_to_modify": [
+      ".factory/smoke_test.sh"
+    ],
+    "preconditions": [
+      "F16.1 done"
+    ],
+    "implementation_steps": [
+      "Write bash script using curl to test all 4 scenarios from user-testing.md",
+      "Script exits 0 on all pass, non-zero on any failure",
+      "Parameterize BASE_URL and test tokens via env vars"
+    ],
+    "verification_steps": [
+      ".factory/smoke_test.sh exits 0 against running server"
+    ],
+    "fulfills": [
+      "A16.2.1"
+    ],
+    "done_definition": "Smoke test script passes all 4 scenarios",
+    "risk_notes": "Requires running server and pre-seeded test data",
+    "status": "pending"
+  },
+  {
+    "id": "F16.3",
+    "milestone": "M16",
+    "worker": "test-validation-worker",
+    "description": "Full regression: go test ./... exits 0; go vet ./... exits 0.",
+    "scope": "all Go packages",
+    "files_to_inspect": [],
+    "files_to_modify": [],
+    "preconditions": [
+      "F16.2 done"
+    ],
+    "implementation_steps": [
+      "Run go test ./... -count=1 -timeout 120s",
+      "Run go vet ./...",
+      "Fix any failures found",
+      "Ensure no test is skipped without documented reason"
+    ],
+    "verification_steps": [
+      "go test ./... exits 0 with no FAIL lines",
+      "go vet ./... exits 0"
+    ],
+    "fulfills": [
+      "A16.3.1",
+      "A16.3.2"
+    ],
+    "done_definition": "All tests pass; no vet warnings",
+    "risk_notes": "Some tests may require DB or env vars; document requirements",
+    "status": "pending"
+  }
+]

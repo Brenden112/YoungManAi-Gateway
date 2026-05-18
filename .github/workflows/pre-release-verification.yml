@@ -1,0 +1,144 @@
+name: Pre-release verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/pre-release-verification.yml'
+      - 'common/**'
+      - 'controller/**'
+      - 'middleware/**'
+      - 'model/**'
+      - 'relay/**'
+      - 'router/**'
+      - 'service/**'
+      - 'scripts/**'
+      - 'tests/migration/**'
+      - 'web/default/**'
+      - 'docker-compose*.yml'
+      - 'go.mod'
+      - 'go.sum'
+
+env:
+  GO_VERSION_FILE: go.mod
+
+jobs:
+  go-test-vet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache: true
+      - run: go mod download
+      - run: go test ./model/... -count=1
+      - run: go test ./middleware/... -count=1
+      - run: go test ./... -count=1
+      - run: go vet ./...
+
+  local-fixture-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache: true
+      - run: go mod download
+      - run: LOCAL_FIXTURE=1 bash scripts/regression.sh
+
+  cross-db-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: new_api_migration
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: new_api_migration
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d new_api_migration"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache: true
+      - run: go mod download
+      - name: SQLite migration smoke
+        run: bash scripts/ci-migration-check.sh
+      - name: MySQL migration smoke
+        run: bash scripts/ci-migration-check.sh
+        env:
+          SQL_DSN: root:rootpass@tcp(127.0.0.1:3306)/new_api_migration?charset=utf8mb4&parseTime=true
+      - name: PostgreSQL migration smoke
+        run: bash scripts/ci-migration-check.sh
+        env:
+          SQL_DSN: postgresql://postgres:postgres@127.0.0.1:5432/new_api_migration?sslmode=disable
+
+  docker-fixture-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate fixture compose
+        run: docker compose -f docker-compose.fixture.yml config
+      - name: Build and start fixture
+        timeout-minutes: 20
+        run: docker compose -f docker-compose.fixture.yml up -d --build
+      - name: Seed fixture and run curl smoke
+        timeout-minutes: 10
+        run: |
+          ADMIN_LINE="$(BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh | tail -n 1)"
+          eval "$ADMIN_LINE"
+          BASE_URL=http://localhost:3000 ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/regression.sh
+      - name: Fixture cleanup
+        if: always()
+        run: docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes
+
+  frontend-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web/default
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Lint
+        run: |
+          node -e "const p=require('./package.json'); if (!p.scripts?.lint) { console.error('needs_test_script: lint script missing'); process.exit(2) }"
+          bun run lint
+      - name: Test
+        run: |
+          node -e "const p=require('./package.json'); if (!p.scripts?.test) { console.error('needs_test_script: test script missing'); process.exit(2) }"
+          bun run test
+      - name: Build
+        run: |
+          node -e "const p=require('./package.json'); if (!p.scripts?.build) { console.error('needs_test_script: build script missing'); process.exit(2) }"
+          bun run build

@@ -179,10 +179,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}()
 
 	retryParam := &service.RetryParam{
-		Ctx:        c,
-		TokenGroup: relayInfo.TokenGroup,
-		ModelName:  relayInfo.OriginModelName,
-		Retry:      common.GetPointer(0),
+		Ctx:               c,
+		TokenGroup:        relayInfo.TokenGroup,
+		ModelName:         relayInfo.OriginModelName,
+		Retry:             common.GetPointer(0),
+		AllowExperimental: service.IsInternalUser(c) && common.GetContextKeyBool(c, constant.ContextKeyTokenAllowExperimental),
+		ProviderPolicy:    service.GetProviderTypePolicyForRequest(c),
 	}
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
@@ -354,12 +356,13 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 }
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
-	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, err.Error()))
+	sanitizedError := model.SanitizeErrorMessage(err.Error())
+	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, sanitizedError))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
 	if service.ShouldDisableChannel(err) && channelError.AutoBan {
 		gopool.Go(func() {
-			service.DisableChannel(channelError, err.ErrorWithStatusCode())
+			service.DisableChannel(channelError, model.SanitizeErrorMessage(err.ErrorWithStatusCode()))
 		})
 	}
 
@@ -507,10 +510,12 @@ func RelayTask(c *gin.Context) {
 	}()
 
 	retryParam := &service.RetryParam{
-		Ctx:        c,
-		TokenGroup: relayInfo.TokenGroup,
-		ModelName:  relayInfo.OriginModelName,
-		Retry:      common.GetPointer(0),
+		Ctx:               c,
+		TokenGroup:        relayInfo.TokenGroup,
+		ModelName:         relayInfo.OriginModelName,
+		Retry:             common.GetPointer(0),
+		AllowExperimental: service.IsInternalUser(c) && common.GetContextKeyBool(c, constant.ContextKeyTokenAllowExperimental),
+		ProviderPolicy:    service.GetProviderTypePolicyForRequest(c),
 	}
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {

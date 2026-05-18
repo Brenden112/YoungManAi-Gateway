@@ -114,6 +114,10 @@ var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
 
+// StoreFullTextEnabled controls whether full prompt/response content is stored in usage logs.
+// Default false — privacy-first: only token counts and metadata are stored.
+var StoreFullTextEnabled = false
+
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
 

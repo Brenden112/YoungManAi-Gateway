@@ -1,11 +1,14 @@
 package claude
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -377,6 +380,16 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 							})
 						}
 					default:
+						if mediaMessage.Type == dto.ContentTypeFile {
+							claudeFileMessage, handled, err := convertOpenAIFileContentToClaude(mediaMessage)
+							if err != nil {
+								return nil, err
+							}
+							if handled {
+								claudeMediaMessages = append(claudeMediaMessages, claudeFileMessage)
+							}
+							continue
+						}
 						source := mediaMessage.ToFileSource()
 						if source == nil {
 							continue
@@ -432,6 +445,48 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 	claudeRequest.Prompt = ""
 	claudeRequest.Messages = claudeMessages
 	return &claudeRequest, nil
+}
+
+func convertOpenAIFileContentToClaude(mediaMessage dto.MediaContent) (dto.ClaudeMediaMessage, bool, error) {
+	file := mediaMessage.GetFile()
+	if file == nil || file.FileData == "" {
+		return dto.ClaudeMediaMessage{}, false, nil
+	}
+
+	mimeType := mimeTypeFromFileName(file.FileName)
+	switch {
+	case strings.HasPrefix(mimeType, "application/pdf"):
+		return dto.ClaudeMediaMessage{
+			Type: "document",
+			Source: &dto.ClaudeMessageSource{
+				Type:      "base64",
+				MediaType: mimeType,
+				Data:      file.FileData,
+			},
+		}, true, nil
+	case strings.HasPrefix(mimeType, "text/"):
+		decoded, err := base64.StdEncoding.DecodeString(file.FileData)
+		if err != nil {
+			return dto.ClaudeMediaMessage{}, false, fmt.Errorf("decode text file data failed: %w", err)
+		}
+		if !utf8.Valid(decoded) {
+			return dto.ClaudeMediaMessage{}, false, nil
+		}
+		return dto.ClaudeMediaMessage{
+			Type: "text",
+			Text: common.GetPointer[string](string(decoded)),
+		}, true, nil
+	default:
+		return dto.ClaudeMediaMessage{}, false, nil
+	}
+}
+
+func mimeTypeFromFileName(fileName string) string {
+	ext := strings.TrimPrefix(filepath.Ext(fileName), ".")
+	if ext == "" {
+		return "application/octet-stream"
+	}
+	return service.GetMimeTypeByExtension(ext)
 }
 
 func StreamResponseClaude2OpenAI(claudeResponse *dto.ClaudeResponse) *dto.ChatCompletionsStreamResponse {

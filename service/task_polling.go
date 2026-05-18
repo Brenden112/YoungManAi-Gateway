@@ -192,7 +192,11 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 		return errors.New("adaptor not found")
 	}
 	proxy := ch.GetSetting().Proxy
-	resp, err := adaptor.FetchTask(*ch.BaseURL, ch.Key, map[string]any{
+	key, _, apiErr := ch.ResolveActiveCredential()
+	if apiErr != nil {
+		return fmt.Errorf("provider account credential unavailable")
+	}
+	resp, err := adaptor.FetchTask(*ch.BaseURL, key, map[string]any{
 		"ids": taskIds,
 	}, proxy)
 	if err != nil {
@@ -329,7 +333,11 @@ func updateVideoTasks(ctx context.Context, platform constant.TaskPlatform, chann
 	info.ChannelMeta = &relaycommon.ChannelMeta{
 		ChannelBaseUrl: cacheGetChannel.GetBaseURL(),
 	}
-	info.ApiKey = cacheGetChannel.Key
+	key, _, apiErr := cacheGetChannel.ResolveActiveCredential()
+	if apiErr != nil {
+		return fmt.Errorf("provider account credential unavailable")
+	}
+	info.ApiKey = key
 	adaptor.Init(info)
 	for _, taskId := range taskIds {
 		if err := updateVideoSingleTask(ctx, adaptor, cacheGetChannel, taskId, taskM); err != nil {
@@ -353,11 +361,19 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		logger.LogError(ctx, fmt.Sprintf("Task %s not found in taskM", taskId))
 		return fmt.Errorf("task %s not found", taskId)
 	}
-	key := ch.Key
-
-	privateData := task.PrivateData
-	if privateData.Key != "" {
-		key = privateData.Key
+	key := ""
+	if ch.ProviderAccountId != nil {
+		resolved, _, apiErr := ch.ResolveActiveCredential()
+		if apiErr != nil {
+			return fmt.Errorf("provider account credential unavailable")
+		}
+		key = resolved
+	} else {
+		key = ch.Key
+		privateData := task.PrivateData
+		if privateData.Key != "" {
+			key = privateData.Key
+		}
 	}
 	resp, err := adaptor.FetchTask(baseURL, key, map[string]any{
 		"task_id": task.GetUpstreamTaskID(),

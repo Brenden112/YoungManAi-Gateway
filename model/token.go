@@ -1,38 +1,214 @@
 package model
 
 import (
+	"crypto/hmac"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
 )
 
 type Token struct {
-	Id                 int            `json:"id"`
-	UserId             int            `json:"user_id" gorm:"index"`
-	Key                string         `json:"key" gorm:"type:varchar(128);uniqueIndex"`
-	Status             int            `json:"status" gorm:"default:1"`
-	Name               string         `json:"name" gorm:"index" `
-	CreatedTime        int64          `json:"created_time" gorm:"bigint"`
-	AccessedTime       int64          `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime        int64          `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
-	RemainQuota        int            `json:"remain_quota" gorm:"default:0"`
-	UnlimitedQuota     bool           `json:"unlimited_quota"`
-	ModelLimitsEnabled bool           `json:"model_limits_enabled"`
-	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
-	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
-	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
-	Group              string         `json:"group" gorm:"default:''"`
-	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
-	DeletedAt          gorm.DeletedAt `gorm:"index"`
+	Id                 int     `json:"id"`
+	UserId             int     `json:"user_id" gorm:"index"`
+	Key                string  `json:"key" gorm:"type:varchar(128);index"`
+	Status             int     `json:"status" gorm:"default:1"`
+	Name               string  `json:"name" gorm:"index" `
+	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
+	AccessedTime       int64   `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime        int64   `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
+	RemainQuota        int     `json:"remain_quota" gorm:"default:0"`
+	UnlimitedQuota     bool    `json:"unlimited_quota"`
+	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
+	ModelLimits        string  `json:"model_limits" gorm:"type:text"`
+	AllowIps           *string `json:"allow_ips" gorm:"default:''"`
+	UsedQuota          int     `json:"used_quota" gorm:"default:0"` // used quota
+	Group              string  `json:"group" gorm:"default:''"`
+	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	// M10-F01: org/project binding
+	OrgId     *int `json:"org_id" gorm:"index"`
+	ProjectId *int `json:"project_id" gorm:"index"`
+	// M10-F02: secure key storage — hash for verification, prefix for display
+	KeyHash   string `json:"-" gorm:"type:varchar(64);index"`
+	KeyPrefix string `json:"key_prefix" gorm:"type:varchar(16)"`
+	// M10-F04: experimental_proxy access control (default false — normal keys cannot access experimental)
+	AllowExperimental    bool           `json:"allow_experimental" gorm:"default:false"`
+	AllowedProviderTypes string         `json:"allowed_provider_types" gorm:"type:text"`
+	DeletedAt            gorm.DeletedAt `gorm:"index"`
+}
+
+type TokenTenantScope struct {
+	UserId    int
+	OrgId     *int
+	ProjectId *int
+	Legacy    bool
 }
 
 func (token *Token) Clean() {
 	token.Key = ""
+}
+
+func HashTokenKey(key string) string {
+	key = NormalizeTokenKey(key)
+	if key == "" {
+		return ""
+	}
+	return common.GenerateHMAC(key)
+}
+
+func NormalizeTokenKey(key string) string {
+	key = strings.TrimSpace(key)
+	key = strings.TrimPrefix(key, "Bearer ")
+	key = strings.TrimPrefix(key, "bearer ")
+	return strings.TrimPrefix(key, "sk-")
+}
+
+func looksLikeTokenHash(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+func tokenKeyColumnName() string {
+	if commonKeyCol != "" {
+		return commonKeyCol
+	}
+	return "`key`"
+}
+
+func tokenHashForStoredValue(value string) string {
+	value = NormalizeTokenKey(value)
+	if value == "" {
+		return ""
+	}
+	if looksLikeTokenHash(value) {
+		return value
+	}
+	return HashTokenKey(value)
+}
+
+func tokenKeyPrefix(key string) string {
+	key = NormalizeTokenKey(key)
+	if len(key) <= 8 {
+		return key
+	}
+	return key[:8]
+}
+
+func prepareTokenKeyForStorage(token *Token) {
+	if token == nil {
+		return
+	}
+	rawKey := NormalizeTokenKey(token.Key)
+	if token.KeyHash == "" && rawKey != "" {
+		token.KeyHash = HashTokenKey(rawKey)
+	}
+	if token.KeyPrefix == "" && rawKey != "" {
+		token.KeyPrefix = tokenKeyPrefix(rawKey)
+	}
+	if token.KeyHash != "" {
+		// Keep the deprecated legacy column non-secret for databases that still
+		// have an existing uniqueness/index dependency on tokens.key.
+		token.Key = token.KeyHash
+	}
+}
+
+// BeforeCreate computes non-reversible key storage fields and removes plaintext.
+func (token *Token) BeforeCreate(tx *gorm.DB) error {
+	prepareTokenKeyForStorage(token)
+	return nil
+}
+
+func intPtr(v int) *int {
+	value := v
+	return &value
+}
+
+func isUserInOrganization(userId int, org *Organization) (bool, error) {
+	if org == nil {
+		return false, nil
+	}
+	if org.OwnerId == userId {
+		return true, nil
+	}
+	var count int64
+	if err := DB.Model(&OrganizationMember{}).Where("org_id = ? AND user_id = ?", org.Id, userId).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func ResolveTokenTenantScope(token *Token) (*TokenTenantScope, error) {
+	if token == nil {
+		return nil, errors.New("token is nil")
+	}
+	scope := &TokenTenantScope{
+		UserId:    token.UserId,
+		OrgId:     token.OrgId,
+		ProjectId: token.ProjectId,
+		Legacy:    token.OrgId == nil && token.ProjectId == nil,
+	}
+	if scope.Legacy {
+		return scope, nil
+	}
+
+	var projectOrgId *int
+	if token.ProjectId != nil {
+		project, err := GetProjectById(*token.ProjectId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid token project binding: %w", err)
+		}
+		if project.Status != common.UserStatusEnabled {
+			return nil, errors.New("token project binding is disabled")
+		}
+		projectOrgId = intPtr(project.OrgId)
+		if token.OrgId != nil && project.OrgId != *token.OrgId {
+			return nil, errors.New("token project binding belongs to a different organization")
+		}
+		if scope.OrgId == nil {
+			scope.OrgId = projectOrgId
+		}
+	}
+
+	if scope.OrgId != nil {
+		org, err := GetOrganizationById(*scope.OrgId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid token organization binding: %w", err)
+		}
+		if org.Status != common.UserStatusEnabled {
+			return nil, errors.New("token organization binding is disabled")
+		}
+		member, err := isUserInOrganization(token.UserId, org)
+		if err != nil {
+			return nil, err
+		}
+		if !member {
+			return nil, errors.New("token user is not a member of the bound organization")
+		}
+	}
+
+	return scope, nil
+}
+
+func ValidateTokenTenantBinding(token *Token) error {
+	_, err := ResolveTokenTenantScope(token)
+	return err
+}
+
+// DisableToken sets a token's status to disabled.
+func DisableToken(id int) error {
+	return DB.Model(&Token{}).Where("id = ?", id).Update("status", common.TokenStatusDisabled).Error
 }
 
 func MaskTokenKey(key string) string {
@@ -49,11 +225,11 @@ func MaskTokenKey(key string) string {
 }
 
 func (token *Token) GetFullKey() string {
-	return token.Key
+	return ""
 }
 
 func (token *Token) GetMaskedKey() string {
-	return MaskTokenKey(token.Key)
+	return MaskTokenKey(token.KeyPrefix)
 }
 
 func (token *Token) GetIpLimits() []string {
@@ -83,6 +259,30 @@ func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {
 	var err error
 	err = DB.Where("user_id = ?", userId).Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
 	return tokens, err
+}
+
+// GetAdminAllTokens returns a paginated list of all tokens across all users.
+// M15-F01: supports optional filters for userId, orgId, projectId, allowExperimental.
+func GetAdminAllTokens(userId int, orgId *int, projectId *int, allowExperimental *bool, startIdx int, num int) (tokens []*Token, total int64, err error) {
+	tx := DB.Model(&Token{})
+	if userId != 0 {
+		tx = tx.Where("user_id = ?", userId)
+	}
+	if orgId != nil {
+		tx = tx.Where("org_id = ?", *orgId)
+	}
+	if projectId != nil {
+		tx = tx.Where("project_id = ?", *projectId)
+	}
+	if allowExperimental != nil {
+		tx = tx.Where("allow_experimental = ?", *allowExperimental)
+	}
+	err = tx.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	err = tx.Order("id desc").Limit(num).Offset(startIdx).Find(&tokens).Error
+	return tokens, total, err
 }
 
 // sanitizeLikePattern 校验并清洗用户输入的 LIKE 搜索模式。
@@ -134,7 +334,7 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 	}
 
 	if token != "" {
-		token = strings.TrimPrefix(token, "sk-")
+		token = NormalizeTokenKey(token)
 	}
 
 	// 超量用户（令牌数超过上限）只允许精确搜索，禁止模糊搜索
@@ -166,7 +366,7 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 		if err != nil {
 			return nil, 0, err
 		}
-		baseQuery = baseQuery.Where(commonKeyCol+" LIKE ? ESCAPE '!'", tokenPattern)
+		baseQuery = baseQuery.Where("key_prefix LIKE ? ESCAPE '!'", tokenPattern)
 	}
 
 	// 先查匹配总数（用于分页，受 maxTokens 上限保护，避免全表 COUNT）
@@ -216,6 +416,10 @@ func ValidateUserToken(key string) (token *Token, err error) {
 			}
 			return token, ErrTokenInvalid
 		}
+		if err := ValidateTokenTenantBinding(token); err != nil {
+			common.SysLog(fmt.Sprintf("ValidateUserToken: invalid tenant binding for token %d: %v", token.Id, err))
+			return token, ErrTokenInvalid
+		}
 		return token, nil
 	}
 	common.SysLog("ValidateUserToken: failed to get token: " + err.Error())
@@ -253,6 +457,10 @@ func GetTokenById(id int) (*Token, error) {
 }
 
 func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
+	keyHash := HashTokenKey(key)
+	if keyHash == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
 	defer func() {
 		// Update Redis cache asynchronously on successful DB read
 		if shouldUpdateRedis(fromDB, err) && token != nil {
@@ -272,12 +480,16 @@ func GetTokenByKey(key string, fromDB bool) (token *Token, err error) {
 		// Don't return error - fall through to DB
 	}
 	fromDB = true
-	err = DB.Where(commonKeyCol+" = ?", key).First(&token).Error
+	err = DB.Where("key_hash = ?", keyHash).First(&token).Error
+	if err == nil && !hmac.Equal([]byte(token.KeyHash), []byte(keyHash)) {
+		return nil, gorm.ErrRecordNotFound
+	}
 	return token, err
 }
 
 func (token *Token) Insert() error {
 	var err error
+	prepareTokenKeyForStorage(token)
 	err = DB.Create(token).Error
 	return err
 }
@@ -295,7 +507,8 @@ func (token *Token) Update() (err error) {
 		}
 	}()
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry", "org_id", "project_id",
+		"allow_experimental", "allowed_provider_types").Updates(token).Error
 	return err
 }
 
@@ -315,10 +528,11 @@ func (token *Token) SelectUpdate() (err error) {
 }
 
 func (token *Token) Delete() (err error) {
+	cacheKey := token.KeyHash
 	defer func() {
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
-				err := cacheDeleteToken(token.Key)
+				err := cacheDeleteToken(cacheKey)
 				if err != nil {
 					common.SysLog("failed to delete token cache: " + err.Error())
 				}
@@ -347,6 +561,36 @@ func (token *Token) GetModelLimitsMap() map[string]bool {
 		limitsMap[limit] = true
 	}
 	return limitsMap
+}
+
+func (token *Token) GetAllowedProviderTypes() []string {
+	if token == nil || strings.TrimSpace(token.AllowedProviderTypes) == "" {
+		return nil
+	}
+	parts := strings.Split(token.AllowedProviderTypes, ",")
+	allowed := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		providerType := strings.TrimSpace(part)
+		if providerType == "" {
+			continue
+		}
+		if _, exists := seen[providerType]; exists {
+			continue
+		}
+		seen[providerType] = struct{}{}
+		allowed = append(allowed, providerType)
+	}
+	return allowed
+}
+
+func (token *Token) ValidateAllowedProviderTypes() error {
+	for _, providerType := range token.GetAllowedProviderTypes() {
+		if !constant.IsValidProviderType(providerType) {
+			return fmt.Errorf("invalid allowed_provider_types value %q", providerType)
+		}
+	}
+	return nil
 }
 
 func DisableModelLimits(tokenId int) error {
@@ -378,7 +622,7 @@ func IncreaseTokenQuota(tokenId int, key string, quota int) (err error) {
 	}
 	if common.RedisEnabled {
 		gopool.Go(func() {
-			err := cacheIncrTokenQuota(key, int64(quota))
+			err := cacheIncrTokenQuota(HashTokenKey(key), int64(quota))
 			if err != nil {
 				common.SysLog("failed to increase token quota: " + err.Error())
 			}
@@ -408,7 +652,7 @@ func DecreaseTokenQuota(id int, key string, quota int) (err error) {
 	}
 	if common.RedisEnabled {
 		gopool.Go(func() {
-			err := cacheDecrTokenQuota(key, int64(quota))
+			err := cacheDecrTokenQuota(HashTokenKey(key), int64(quota))
 			if err != nil {
 				common.SysLog("failed to decrease token quota: " + err.Error())
 			}
@@ -465,7 +709,7 @@ func BatchDeleteTokens(ids []int, userId int) (int, error) {
 	if common.RedisEnabled {
 		gopool.Go(func() {
 			for _, t := range tokens {
-				_ = cacheDeleteToken(t.Key)
+				_ = cacheDeleteToken(t.KeyHash)
 			}
 		})
 	}
@@ -475,7 +719,7 @@ func BatchDeleteTokens(ids []int, userId int) (int, error) {
 
 func GetTokenKeysByIds(ids []int, userId int) ([]Token, error) {
 	var tokens []Token
-	err := DB.Select("id", commonKeyCol).
+	err := DB.Select("id", "key_prefix").
 		Where("user_id = ? AND id IN (?)", userId, ids).
 		Find(&tokens).Error
 	return tokens, err
@@ -493,19 +737,52 @@ func InvalidateUserTokensCache(userId int) error {
 	}
 	var tokens []Token
 	if err := DB.Unscoped().
-		Select("id", commonKeyCol).
+		Select("id", "key_hash").
 		Where("user_id = ?", userId).
 		Find(&tokens).Error; err != nil {
 		return err
 	}
 	var firstErr error
 	for _, t := range tokens {
-		if t.Key == "" {
+		if t.KeyHash == "" {
 			continue
 		}
-		if err := cacheDeleteToken(t.Key); err != nil && firstErr == nil {
+		if err := cacheDeleteToken(t.KeyHash); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
 	return firstErr
+}
+
+func MigratePlaintextTokenKeys() error {
+	var tokens []Token
+	if err := DB.Unscoped().
+		Where(tokenKeyColumnName() + " <> '' AND " + tokenKeyColumnName() + " IS NOT NULL").
+		Find(&tokens).Error; err != nil {
+		return err
+	}
+	for i := range tokens {
+		tok := &tokens[i]
+		legacyKey := NormalizeTokenKey(tok.Key)
+		if legacyKey == "" {
+			continue
+		}
+		if looksLikeTokenHash(legacyKey) && tok.KeyHash == legacyKey {
+			continue
+		}
+		if tok.KeyHash == "" {
+			tok.KeyHash = tokenHashForStoredValue(legacyKey)
+		}
+		if tok.KeyPrefix == "" && !looksLikeTokenHash(legacyKey) {
+			tok.KeyPrefix = tokenKeyPrefix(legacyKey)
+		}
+		if err := DB.Unscoped().Model(&Token{}).Where("id = ?", tok.Id).Updates(map[string]interface{}{
+			"key":        tok.KeyHash,
+			"key_hash":   tok.KeyHash,
+			"key_prefix": tok.KeyPrefix,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 
 	"github.com/samber/lo"
 	"gorm.io/gorm"
@@ -32,115 +33,186 @@ func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 	var abilities []AbilityWithChannel
 	err := DB.Table("abilities").
 		Select("abilities.*, channels.type as channel_type").
-		Joins("left join channels on abilities.channel_id = channels.id").
-		Where("abilities.enabled = ?", true).
+		Joins("join channels on abilities.channel_id = channels.id").
+		Where("abilities.enabled = ? AND channels.status = ?", true, common.ChannelStatusEnabled).
 		Scan(&abilities).Error
 	return abilities, err
 }
 
 func GetGroupEnabledModels(group string) []string {
+	return GetGroupEnabledModelsWithProviderPolicy(group, ProviderTypePolicyFromAllowExperimental(true))
+}
+
+func GetGroupEnabledModelsWithProviderPolicy(group string, policy ProviderTypePolicy) []string {
 	var models []string
-	// Find distinct models
-	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
+	var abilities []Ability
+	if err := DB.Model(&Ability{}).
+		Where(commonGroupCol+" = ? and enabled = ?", group, true).
+		Find(&abilities).Error; err != nil {
+		return models
+	}
+	channelIds := make([]int, 0, len(abilities))
+	for _, ability := range abilities {
+		channelIds = append(channelIds, ability.ChannelId)
+	}
+	var channels []Channel
+	if len(channelIds) > 0 {
+		DB.Where("id IN ?", channelIds).Find(&channels)
+	}
+	channelById := make(map[int]Channel, len(channels))
+	for _, channel := range channels {
+		channelById[channel.Id] = channel
+	}
+	seen := make(map[string]struct{})
+	for _, ability := range abilities {
+		channel, ok := channelById[ability.ChannelId]
+		if !ok || !IsChannelRoutableWithProviderPolicy(channel, policy) {
+			continue
+		}
+		if _, ok := seen[ability.Model]; ok {
+			continue
+		}
+		seen[ability.Model] = struct{}{}
+		models = append(models, ability.Model)
+	}
 	return models
+}
+
+// GetGroupEnabledModelsExcludingExperimental returns enabled models for a group,
+// excluding any model that is ONLY served by experimental_proxy channels.
+// Used for non-internal users who must not see experimental_proxy offerings.
+func GetGroupEnabledModelsExcludingExperimental(group string) []string {
+	return GetGroupEnabledModelsWithProviderPolicy(group, ProviderTypePolicyFromAllowExperimental(false))
 }
 
 func GetEnabledModels() []string {
 	var models []string
 	// Find distinct models
-	DB.Table("abilities").Where("enabled = ?", true).Distinct("model").Pluck("model", &models)
+	enabledChannelIds := routableChannelIDsSubquery(true)
+	DB.Table("abilities").
+		Where("enabled = ? AND channel_id IN (?)", true, enabledChannelIds).
+		Distinct("model").
+		Pluck("model", &models)
 	return models
 }
 
 func GetAllEnableAbilities() []Ability {
 	var abilities []Ability
-	DB.Find(&abilities, "enabled = ?", true)
+	enabledChannelIds := routableChannelIDsSubquery(true)
+	DB.Where("enabled = ? AND channel_id IN (?)", true, enabledChannelIds).Find(&abilities)
 	return abilities
 }
 
-func getPriority(group string, model string, retry int) (int, error) {
-
-	var priorities []int
-	err := DB.Model(&Ability{}).
-		Select("DISTINCT(priority)").
-		Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true).
-		Order("priority DESC").              // 按优先级降序排序
-		Pluck("priority", &priorities).Error // Pluck用于将查询的结果直接扫描到一个切片中
-
-	if err != nil {
-		// 处理错误
-		return 0, err
-	}
-
-	if len(priorities) == 0 {
-		// 如果没有查询到优先级，则返回错误
-		return 0, errors.New("数据库一致性被破坏")
-	}
-
-	// 确定要使用的优先级
-	var priorityToUse int
-	if retry >= len(priorities) {
-		// 如果重试次数大于优先级数，则使用最小的优先级
-		priorityToUse = priorities[len(priorities)-1]
-	} else {
-		priorityToUse = priorities[retry]
-	}
-	return priorityToUse, nil
+func GetChannel(group string, model string, retry int, allowExperimental bool) (*Channel, error) {
+	return GetChannelWithProviderPolicy(group, model, retry, ProviderTypePolicyFromAllowExperimental(allowExperimental))
 }
 
-func getChannelQuery(group string, model string, retry int) (*gorm.DB, error) {
-	maxPrioritySubQuery := DB.Model(&Ability{}).Select("MAX(priority)").Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true)
-	channelQuery := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ? and priority = (?)", group, model, true, maxPrioritySubQuery)
-	if retry != 0 {
-		priority, err := getPriority(group, model, retry)
-		if err != nil {
-			return nil, err
-		} else {
-			channelQuery = DB.Where(commonGroupCol+" = ? and model = ? and enabled = ? and priority = ?", group, model, true, priority)
-		}
-	}
-
-	return channelQuery, nil
-}
-
-func GetChannel(group string, model string, retry int) (*Channel, error) {
+func GetChannelWithProviderPolicy(group string, model string, retry int, policy ProviderTypePolicy) (*Channel, error) {
 	var abilities []Ability
-
-	var err error = nil
-	channelQuery, err := getChannelQuery(group, model, retry)
+	err := DB.Model(&Ability{}).
+		Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true).
+		Order("priority DESC, weight DESC").
+		Find(&abilities).Error
 	if err != nil {
 		return nil, err
 	}
-	if common.UsingSQLite || common.UsingPostgreSQL {
-		err = channelQuery.Order("weight DESC").Find(&abilities).Error
-	} else {
-		err = channelQuery.Order("weight DESC").Find(&abilities).Error
-	}
-	if err != nil {
-		return nil, err
-	}
-	channel := Channel{}
-	if len(abilities) > 0 {
-		// Randomly choose one
-		weightSum := uint(0)
-		for _, ability_ := range abilities {
-			weightSum += ability_.Weight + 10
-		}
-		// Randomly choose one
-		weight := common.GetRandomInt(int(weightSum))
-		for _, ability_ := range abilities {
-			weight -= int(ability_.Weight) + 10
-			//log.Printf("weight: %d, ability weight: %d", weight, *ability_.Weight)
-			if weight <= 0 {
-				channel.Id = ability_.ChannelId
-				break
-			}
-		}
-	} else {
+	if len(abilities) == 0 {
 		return nil, nil
 	}
-	err = DB.First(&channel, "id = ?", channel.Id).Error
-	return &channel, err
+
+	channelIds := make([]int, 0, len(abilities))
+	for _, ability := range abilities {
+		channelIds = append(channelIds, ability.ChannelId)
+	}
+	var channels []Channel
+	if err = DB.Where("id IN ?", channelIds).Find(&channels).Error; err != nil {
+		return nil, err
+	}
+	channelById := make(map[int]Channel, len(channels))
+	for _, channel := range channels {
+		channelById[channel.Id] = channel
+	}
+
+	filtered := make([]Ability, 0, len(abilities))
+	for _, ability := range abilities {
+		channel, ok := channelById[ability.ChannelId]
+		if !ok {
+			continue
+		}
+		if IsChannelAllowedByProviderPolicy(channel, policy) && IsChannelRoutableWithProviderPolicy(channel, policy) {
+			filtered = append(filtered, ability)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil, nil
+	}
+
+	uniquePriorities := make([]int, 0)
+	seenPriority := map[int]struct{}{}
+	for _, ability := range filtered {
+		priority := 0
+		if ability.Priority != nil {
+			priority = int(*ability.Priority)
+		}
+		if _, ok := seenPriority[priority]; !ok {
+			seenPriority[priority] = struct{}{}
+			uniquePriorities = append(uniquePriorities, priority)
+		}
+	}
+	if retry >= len(uniquePriorities) {
+		retry = len(uniquePriorities) - 1
+	}
+	targetPriority := uniquePriorities[retry]
+
+	candidates := make([]Ability, 0, len(filtered))
+	weightSum := uint(0)
+	for _, ability := range filtered {
+		priority := 0
+		if ability.Priority != nil {
+			priority = int(*ability.Priority)
+		}
+		if priority == targetPriority {
+			candidates = append(candidates, ability)
+			weightSum += ability.Weight + 10
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, errors.New("database consistency error: no channel candidate after provider policy filtering")
+	}
+
+	weight := common.GetRandomInt(int(weightSum))
+	selectedChannelID := candidates[0].ChannelId
+	for _, ability := range candidates {
+		weight -= int(ability.Weight) + 10
+		if weight <= 0 {
+			selectedChannelID = ability.ChannelId
+			break
+		}
+	}
+	channel, ok := channelById[selectedChannelID]
+	if !ok {
+		return nil, fmt.Errorf("database consistency error: channel #%d not found", selectedChannelID)
+	}
+	return &channel, nil
+}
+
+func routableChannelIDsSubquery(allowExperimental bool) *gorm.DB {
+	query := DB.Table("channels").Select("id").Where("status = ?", common.ChannelStatusEnabled)
+	if !allowExperimental {
+		query = query.Where("(provider_type <> ? OR provider_type IS NULL OR provider_type = '')", constant.ProviderTypeExperimentalProxy)
+	}
+	return query
+}
+
+func IsChannelRoutable(channel Channel, allowExperimental bool) bool {
+	return IsChannelRoutableWithProviderPolicy(channel, ProviderTypePolicyFromAllowExperimental(allowExperimental))
+}
+
+func IsChannelRoutableWithProviderPolicy(channel Channel, policy ProviderTypePolicy) bool {
+	if channel.Status != common.ChannelStatusEnabled {
+		return false
+	}
+	return policy.Allows(channel)
 }
 
 func (channel *Channel) AddAbilities(tx *gorm.DB) error {

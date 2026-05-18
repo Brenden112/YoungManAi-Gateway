@@ -231,6 +231,8 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.POST("/", controller.AddChannel)
 			channelRoute.PUT("/", controller.UpdateChannel)
 			channelRoute.DELETE("/disabled", controller.DeleteDisabledChannel)
+			channelRoute.POST("/disable-experimental", controller.DisableExperimentalProxyChannels)
+			channelRoute.GET("/provider-summary", controller.GetChannelProviderSummary)
 			channelRoute.POST("/tag/disabled", controller.DisableTagChannels)
 			channelRoute.POST("/tag/enabled", controller.EnableTagChannels)
 			channelRoute.PUT("/tag", controller.EditTagChannels)
@@ -270,6 +272,13 @@ func SetApiRouter(router *gin.Engine) {
 			tokenRoute.DELETE("/:id", controller.DeleteToken)
 			tokenRoute.POST("/batch", controller.DeleteTokenBatch)
 			tokenRoute.POST("/batch/keys", middleware.CriticalRateLimit(), middleware.DisableCache(), controller.GetTokenKeysBatch)
+		}
+
+		// M15-F01: admin-wide token management
+		adminTokenRoute := apiRouter.Group("/admin/token")
+		adminTokenRoute.Use(middleware.AdminAuth())
+		{
+			adminTokenRoute.GET("/", controller.GetAdminAllTokens)
 		}
 
 		usageRoute := apiRouter.Group("/usage")
