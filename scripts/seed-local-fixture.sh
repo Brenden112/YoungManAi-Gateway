@@ -7,6 +7,7 @@ ADMIN_USERNAME="${ADMIN_USERNAME:-root}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-RegtestRoot123!}"
 LEGACY_ADMIN_PASSWORD="${LEGACY_ADMIN_PASSWORD:-123456}"
 FAKE_UPSTREAM_BASE_URL="${FAKE_UPSTREAM_BASE_URL:-http://fake-upstream:4010}"
+ADMIN_USER_ID=""
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -18,8 +19,12 @@ require_cmd() {
 api_cookie() {
   local method="$1" path="$2"
   shift 2
+  local headers=(-H "Content-Type: application/json")
+  if [ -n "${ADMIN_USER_ID:-}" ]; then
+    headers+=(-H "New-Api-User: $ADMIN_USER_ID")
+  fi
   curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" -X "$method" "$BASE_URL$path" \
-    -H "Content-Type: application/json" "$@"
+    "${headers[@]}" "$@"
 }
 
 api_no_cookie() {
@@ -27,6 +32,25 @@ api_no_cookie() {
   shift 2
   curl -fsS -X "$method" "$BASE_URL$path" \
     -H "Content-Type: application/json" "$@"
+}
+
+login_admin() {
+  local password="$1"
+  local login_response
+  local user_id
+
+  if ! login_response="$(api_cookie POST /api/user/login \
+    -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$password\"}")"; then
+    return 1
+  fi
+  if [ "$(echo "$login_response" | jq -r '.success // false')" != "true" ]; then
+    return 1
+  fi
+  user_id="$(echo "$login_response" | jq -r '.data.id // empty')"
+  if [ -z "$user_id" ] || [ "$user_id" = "null" ]; then
+    return 1
+  fi
+  ADMIN_USER_ID="$user_id"
 }
 
 require_cmd curl
@@ -61,10 +85,11 @@ if [ "$SETUP_DONE" != "true" ]; then
   fi
 fi
 
-if ! api_cookie POST /api/user/login \
-  -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\"}" >/dev/null; then
-  api_cookie POST /api/user/login \
-    -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$LEGACY_ADMIN_PASSWORD\"}" >/dev/null
+if ! login_admin "$ADMIN_PASSWORD"; then
+  if ! login_admin "$LEGACY_ADMIN_PASSWORD"; then
+    echo "failed to login fixture admin" >&2
+    exit 1
+  fi
 fi
 
 api_cookie POST /api/channel/disable-experimental >/dev/null || true

@@ -1228,3 +1228,20 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Auth Header Seed Fix
+
+**Worker**: codex-ci-docker-fixture-auth-header-worker
+**Summary**: Fixed only the provided `pre-release-verification` failure where the seed step emitted two HTTP 401 responses and exited before regression. The fixture seed script now validates that admin login returned `success: true`, captures the logged-in admin user ID, and sends the required `New-Api-User` header on authenticated admin fixture calls. This matches the existing `AdminAuth` session contract and keeps the fixture on fake provider keys only.
+
+**Files modified**: `scripts/seed-local-fixture.sh`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.

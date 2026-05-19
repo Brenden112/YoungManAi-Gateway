@@ -3,7 +3,7 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-ephemeral-db-seed-fix-2026-05-19",
+  "current_feature": "ci-docker-fixture-auth-header-seed-fix-2026-05-19",
   "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
@@ -100,7 +100,8 @@
     "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
     "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19",
+    "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -125,7 +126,8 @@
       "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
       "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19",
-      "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19"
+      "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19",
+      "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -133,15 +135,14 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-docker-fixture-ephemeral-db-worker",
+    "worker": "codex-ci-docker-fixture-auth-header-worker",
     "status": "completed_pending_ci_rerun",
     "files_modified": [
-      "docker-compose.fixture.yml",
-      ".github/workflows/pre-release-verification.yml",
+      "scripts/seed-local-fixture.sh",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke seed failure where admin login returned 401 twice and ADMIN_TOKEN was missing. The fixture compose now uses an ephemeral SQLite database on tmpfs instead of a persistent fixture data volume so each CI run starts with deterministic seeded admin credentials. The workflow seed step now enables pipefail and validates that seed-local-fixture.sh emitted ADMIN_TOKEN before running regression. No business functionality or real upstream keys were added.",
+    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke seed failure where the seed step emitted two HTTP 401 responses and exited before regression. The fixture seed script now validates admin login success, captures the logged-in admin user ID, and sends the required New-Api-User header on authenticated admin fixture calls. No business functionality or real upstream keys were added.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -153,17 +154,17 @@
       {
         "command": "bash -n scripts/seed-local-fixture.sh",
         "exit_code": 0,
-        "observation": "Fixture seed script syntax check passed."
+        "observation": "Fixture seed script syntax check passed after adding login success validation and New-Api-User propagation."
       },
       {
         "command": "docker compose -f docker-compose.fixture.yml config",
         "exit_code": 0,
-        "observation": "Fixture compose config rendered successfully with tmpfs-backed SQLite path /tmp/new-api-fixture/one-api.db."
+        "observation": "Fixture compose config rendered successfully."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully after fixture ephemeral DB seed fix."
+        "observation": "Mission state JSON parsed successfully after fixture auth header seed fix."
       },
       {
         "command": "git diff --check",
