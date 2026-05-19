@@ -3,8 +3,8 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-pre-release-verification-failures-2026-05-19",
-  "overall_status": "completed_with_local_toolchain_blockers",
+  "current_feature": "ci-pre-release-verification-log-only-fix-2026-05-19",
+  "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
     "M1",
@@ -97,7 +97,8 @@
     "PRE-RELEASE-CROSS-DB-MIGRATION-CI",
     "PRE-RELEASE-DOCKER-FIXTURE-WAIVER",
     "PRE-RELEASE-REVIEW-CHECKLIST",
-    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
+    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
+    "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -119,7 +120,8 @@
       "AUD-023-admin-topup-contract",
       "AUD-024-deterministic-local-fixture-smoke",
       "AUD-025-api-experimental-visibility",
-      "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
+      "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
+      "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -127,27 +129,16 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-pre-release-verification-fix-worker",
-    "status": "completed_with_local_toolchain_blockers",
+    "worker": "codex-ci-pre-release-verification-log-fix-worker",
+    "status": "completed_pending_ci_rerun",
     "files_modified": [
-      ".gitignore",
       "scripts/seed-local-fixture.sh",
-      "web/default/.gitignore",
-      "web/default/dist/index.html",
-      "web/classic/dist/index.html",
+      "tests/migration/migration_schema_test.go",
       "web/default/src/components/risk-acknowledgement-dialog.tsx",
-      "web/default/src/features/channels/components/channels-table.tsx",
-      "web/default/src/features/keys/components/api-keys-dialogs.tsx",
-      "web/default/src/features/system-settings/models/group-ratio-visual-editor.tsx",
-      "web/default/src/features/system-settings/models/ratio-settings-card.tsx",
-      "web/default/src/features/system-settings/models/tiered-pricing-editor.tsx",
-      "web/default/src/features/usage-logs/components/common-logs-filter-bar.tsx",
-      "web/default/src/features/usage-logs/components/task-logs-filter-bar.tsx",
-      "web/default/src/lib/theme-radius.ts",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed only the pre-release-verification CI failures from the provided log: root Go embed setup now has minimal tracked frontend dist entrypoints, the listed frontend lint errors were resolved, and the fixture seed script now emits pure environment assignments so ADMIN_TOKEN is available to the workflow. No new business functionality or real upstream keys were used.",
+    "implementation_summary": "Fixed only the CI failures shown in the provided pre-release-verification log: migration schema tests no longer call GORM HasColumn with a table-name string, the local fixture seed initializes setup before admin login on clean databases, and the risk acknowledgement dialog now resets by remounting its open-state panel instead of calling setState from an effect. No new business functionality or real upstream keys were used.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -157,44 +148,44 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "git ls-files --others --exclude-standard web/default/dist/index.html web/classic/dist/index.html",
-        "exit_code": 0,
-        "observation": "Both dist index files are no longer excluded by effective ignore rules and are ready to be tracked for Go embed."
-      },
-      {
-        "command": "ls -l web/default/dist/index.html web/classic/dist/index.html",
-        "exit_code": 0,
-        "observation": "Confirmed both embedded index files exist locally."
-      },
-      {
-        "command": "go test ./... -count=1",
+        "command": "gofmt -w tests/migration/migration_schema_test.go",
         "exit_code": 127,
-        "observation": "Blocked locally because go is not installed in the current shell."
+        "observation": "Blocked locally because gofmt is not installed in the current shell."
       },
       {
-        "command": "bun run lint",
-        "exit_code": 127,
-        "observation": "Blocked locally because bun is not installed in the current shell and frontend dependencies are absent."
+        "command": "which go",
+        "exit_code": 1,
+        "observation": "Go binary is unavailable locally, so migration tests could not be rerun in this shell."
       },
       {
         "command": "bash -n scripts/seed-local-fixture.sh",
         "exit_code": 0,
-        "observation": "Fixture seed script syntax is valid after changing the final output to environment assignments."
+        "observation": "Fixture seed script syntax is valid after setup-before-login fix."
+      },
+      {
+        "command": "which bun",
+        "exit_code": 1,
+        "observation": "Bun is unavailable locally, so frontend lint could not be rerun in this shell."
+      },
+      {
+        "command": "ls web/default/node_modules/.bin/eslint",
+        "exit_code": 2,
+        "observation": "Frontend dependencies are absent locally, so eslint could not be run directly."
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0,
+        "observation": "Whitespace check passed for the working tree diff."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully."
-      },
-      {
-        "command": "node --version",
-        "exit_code": 0,
-        "observation": "Node is available; package-manager and Go toolchain commands remain blocked locally."
+        "observation": "Mission state JSON parsed successfully after update."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "Rerun pre-release-verification jobs for go-test-vet, local-fixture-regression, seeded local fixture smoke, and frontend lint."
+    "next_recommended_action": "Rerun pre-release-verification jobs that failed in the supplied log: cross-db migration check, seeded local fixture regression/smoke, and frontend lint."
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -303,7 +294,10 @@
     "AUD-018": "completed",
     "AUD-019": "completed",
     "AUD-021": "completed",
-    "A16.3.2": "completed"
+    "A16.3.2": "completed",
+    "CI-MIGRATION-SCHEMA-PANIC": "fixed_pending_ci_rerun",
+    "CI-SEEDED-FIXTURE-ADMIN-LOGIN": "fixed_pending_ci_rerun",
+    "CI-FRONTEND-RISK-ACK-LINT": "fixed_pending_ci_rerun"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -384,8 +378,8 @@
       "A16.2.1"
     ]
   },
-  "next_recommended_action": "Rerun pre-release-verification jobs for go-test-vet, local-fixture-regression, seeded local fixture smoke, and frontend lint.",
-  "updated_at": "2026-05-19T00:00:00+08:00",
+  "next_recommended_action": "Rerun pre-release-verification jobs that failed in the supplied log: cross-db migration check, seeded local fixture regression/smoke, and frontend lint.",
+  "updated_at": "2026-05-19T01:30:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -440,7 +434,8 @@
     "AUD-023-admin-topup-contract",
     "AUD-024-deterministic-local-fixture-smoke",
     "AUD-025-api-experimental-visibility",
-    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
+    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
+    "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19"
   ],
   "blocked_issues": [],
   "remaining_issues": [],
@@ -462,8 +457,11 @@
     "docker_runtime_smoke": "pending_ci_verification",
     "docker_fixture_cleanup": "blocked_protocol_not_available",
     "final_go_verification": "pending_ci_verification",
-    "pre_release_verification_ci_failure_fix": "completed_with_local_toolchain_blockers",
-    "fixture_seed_admin_token_export": "passed_script_syntax_pending_ci_runtime"
+    "pre_release_verification_ci_failure_fix": "completed_pending_ci_rerun",
+    "fixture_seed_admin_token_export": "passed_script_syntax_pending_ci_runtime",
+    "migration_schema_column_assertion": "fixed_pending_ci_cross_db_rerun",
+    "fixture_seed_setup_before_login": "fixed_pending_ci_runtime_rerun",
+    "risk_acknowledgement_lint": "fixed_pending_ci_frontend_lint_rerun"
   },
   "final_security_status": {
     "critical_findings_remaining": 0,

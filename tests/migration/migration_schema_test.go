@@ -103,8 +103,16 @@ func assertColumnsInDB(t *testing.T, db *gorm.DB, table string, columns ...strin
 	if !db.Migrator().HasTable(table) {
 		t.Fatalf("expected table %s to exist", table)
 	}
+	columnTypes, err := db.Migrator().ColumnTypes(table)
+	if err != nil {
+		t.Fatalf("failed to inspect columns for %s: %v", table, err)
+	}
+	columnNames := make(map[string]struct{}, len(columnTypes))
+	for _, columnType := range columnTypes {
+		columnNames[columnType.Name()] = struct{}{}
+	}
 	for _, column := range columns {
-		if !db.Migrator().HasColumn(table, column) {
+		if _, ok := columnNames[column]; !ok {
 			t.Fatalf("expected %s.%s to exist", table, column)
 		}
 	}

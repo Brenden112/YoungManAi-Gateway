@@ -1178,3 +1178,19 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `scripts/ci-verify.sh` was executed locally and reported Go checks as blocked because `go` is unavailable; this is expected in the current environment.
 
 **Next recommended action**: Run pre-release verification workflow in CI/staging and close accepted blockers before production.
+
+---
+
+### 2026-05-19 — CI Pre-release Verification Log-only Fix
+
+**Worker**: codex-ci-pre-release-verification-log-fix-worker
+**Summary**: Fixed only the failures shown in the CI pre-release-verification log. Migration schema assertions now inspect migrated column metadata without calling GORM `HasColumn` with a table-name string, avoiding the MySQL nil-pointer panic. The local fixture seed script now completes setup on a clean database before admin login and still uses only fake fixture credentials/provider keys. The risk acknowledgement dialog now resets by remounting its open-state panel instead of calling setState from an effect.
+
+**Files modified**: `tests/migration/migration_schema_test.go`, `scripts/seed-local-fixture.sh`, `web/default/src/components/risk-acknowledgement-dialog.tsx`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh` passed.
+- `git diff --check` passed.
+- `gofmt`, Go migration tests, and frontend lint could not be run locally because the current shell has no Go/Bun toolchain and `web/default/node_modules` is absent.
+
+**Next recommended action**: Rerun the `pre-release-verification` CI jobs that failed in the provided log: cross-db migration check, seeded local fixture regression/smoke, and frontend lint.

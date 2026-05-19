@@ -4,7 +4,8 @@ set -euo pipefail
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 COOKIE_JAR="${COOKIE_JAR:-/tmp/new-api-fixture-cookies.txt}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-root}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-123456}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-RegtestRoot123!}"
+LEGACY_ADMIN_PASSWORD="${LEGACY_ADMIN_PASSWORD:-123456}"
 FAKE_UPSTREAM_BASE_URL="${FAKE_UPSTREAM_BASE_URL:-http://fake-upstream:4010}"
 
 require_cmd() {
@@ -21,6 +22,13 @@ api_cookie() {
     -H "Content-Type: application/json" "$@"
 }
 
+api_no_cookie() {
+  local method="$1" path="$2"
+  shift 2
+  curl -fsS -X "$method" "$BASE_URL$path" \
+    -H "Content-Type: application/json" "$@"
+}
+
 require_cmd curl
 require_cmd jq
 
@@ -34,8 +42,30 @@ for _ in $(seq 1 60); do
 done
 curl -fsS "$BASE_URL/api/status" >/dev/null
 
-api_cookie POST /api/user/login \
-  -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\"}" >/dev/null
+SETUP_STATUS="$(api_no_cookie GET /api/setup)"
+SETUP_DONE="$(echo "$SETUP_STATUS" | jq -r '.data.status // false')"
+ROOT_INIT="$(echo "$SETUP_STATUS" | jq -r '.data.root_init // false')"
+if [ "$SETUP_DONE" != "true" ]; then
+  if [ "$ROOT_INIT" = "true" ]; then
+    api_no_cookie POST /api/setup \
+      -d '{"SelfUseModeEnabled":true,"DemoSiteEnabled":false}' | jq -e '.success == true' >/dev/null
+  else
+    api_no_cookie POST /api/setup \
+      -d "{
+        \"username\":\"$ADMIN_USERNAME\",
+        \"password\":\"$ADMIN_PASSWORD\",
+        \"confirmPassword\":\"$ADMIN_PASSWORD\",
+        \"SelfUseModeEnabled\":true,
+        \"DemoSiteEnabled\":false
+      }" | jq -e '.success == true' >/dev/null
+  fi
+fi
+
+if ! api_cookie POST /api/user/login \
+  -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$ADMIN_PASSWORD\"}" >/dev/null; then
+  api_cookie POST /api/user/login \
+    -d "{\"username\":\"$ADMIN_USERNAME\",\"password\":\"$LEGACY_ADMIN_PASSWORD\"}" >/dev/null
+fi
 
 api_cookie POST /api/channel/disable-experimental >/dev/null || true
 

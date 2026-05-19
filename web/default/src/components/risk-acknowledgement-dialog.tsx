@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import {
@@ -63,9 +63,25 @@ type RiskAcknowledgementDialogProps = {
   className?: string
 }
 
+type RiskAcknowledgementDialogPanelProps = Omit<
+  RiskAcknowledgementDialogProps,
+  'onOpenChange'
+>
+
 export function RiskAcknowledgementDialog({
   open,
   onOpenChange,
+  ...props
+}: RiskAcknowledgementDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {open ? <RiskAcknowledgementDialogPanel open={open} {...props} /> : null}
+    </AlertDialog>
+  )
+}
+
+function RiskAcknowledgementDialogPanel({
+  open,
   title,
   description,
   items = [],
@@ -81,11 +97,8 @@ export function RiskAcknowledgementDialog({
   isLoading = false,
   onConfirm,
   className,
-}: RiskAcknowledgementDialogProps) {
+}: RiskAcknowledgementDialogPanelProps) {
   const { t } = useTranslation()
-  const [checkedItems, setCheckedItems] = useState<boolean[]>([])
-  const [typedText, setTypedText] = useState('')
-  const [typedTextParts, setTypedTextParts] = useState<string[]>([])
 
   const normalizedRequiredTextParts = useMemo<
     NormalizedRequiredTextPart[]
@@ -115,12 +128,13 @@ export function RiskAcknowledgementDialog({
     ? normalizedRequiredTextParts.map((part) => part.text).join('')
     : requiredText
 
-  useEffect(() => {
-    if (!open) return
-    setCheckedItems(Array(checklist.length).fill(false))
-    setTypedText('')
-    setTypedTextParts(Array(requiredTextInputCount).fill(''))
-  }, [open, checklist.length, requiredTextInputCount])
+  const [checkedItems, setCheckedItems] = useState<boolean[]>(() =>
+    Array(checklist.length).fill(false)
+  )
+  const [typedText, setTypedText] = useState('')
+  const [typedTextParts, setTypedTextParts] = useState<string[]>(() =>
+    Array(requiredTextInputCount).fill('')
+  )
 
   const allChecked = useMemo(() => {
     if (checklist.length === 0) return true
@@ -169,8 +183,7 @@ export function RiskAcknowledgementDialog({
   }
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent
+    <AlertDialogContent
         className={cn(
           'flex max-h-[min(88dvh,760px)] w-[calc(100vw-1.5rem)] !max-w-[44rem] grid-rows-none flex-col gap-0 overflow-hidden !p-0 sm:w-[min(44rem,calc(100vw-3rem))]',
           className
@@ -305,7 +318,6 @@ export function RiskAcknowledgementDialog({
             {confirmText ?? t('Confirm')}
           </Button>
         </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    </AlertDialogContent>
   )
 }
