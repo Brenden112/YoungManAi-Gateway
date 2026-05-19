@@ -1245,3 +1245,20 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Kiro Channel Type Seed Fix
+
+**Worker**: codex-ci-docker-fixture-kiro-channel-type-worker
+**Summary**: Fixed only the provided `pre-release-verification` failure where the seed step exited with status 1 before regression output. The fixture experimental channel now uses the KiroGateway channel type (`58`) for the `kiro-test-experimental` fake-provider fixture instead of the Codex channel type (`57`), whose validation requires an OAuth JSON key. No business functionality or real upstream keys were added.
+
+**Files modified**: `scripts/seed-local-fixture.sh`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.

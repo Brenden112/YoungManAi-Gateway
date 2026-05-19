@@ -114,7 +114,7 @@ api_cookie POST /api/channel/ \
     \"mode\":\"single\",
     \"channel\":{
       \"name\":\"fixture-experimental-proxy\",
-      \"type\":57,
+      \"type\":58,
       \"key\":\"fixture-non-secret-key\",
       \"base_url\":\"$FAKE_UPSTREAM_BASE_URL\",
       \"models\":\"kiro-test-experimental\",
