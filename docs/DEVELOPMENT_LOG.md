@@ -1212,6 +1212,22 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
 
+---
+
+### 2026-05-19 — CI Docker Fixture Regression Token Route and Billing Bypass Fix
+
+**Worker**: codex-ci-docker-fixture-token-route-worker
+**Summary**: Local Docker fixture verification exposed two remaining regression-script issues after admin user propagation was fixed. Token creation used `POST /api/token`, which receives a 307 redirect to `/api/token/`; curl did not follow the redirect, so generated API keys were empty and relay requests returned 401. The log check used `/api/log`, which receives a 301 redirect to `/api/log/`, causing jq to parse HTML. The regression script now uses the canonical trailing-slash routes. The normal fixture user also receives enough test quota and an unlimited fixture token so the official provider smoke path avoids finite-token pre-consume lookup and tests the fake upstream success path. No real upstream keys or business features were added.
+
+**Files modified**: `scripts/regression.sh`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `docker --context default compose -f docker-compose.fixture.yml up -d --build` succeeded using `FIXTURE_PORT=3001` because local port 3000 was already occupied by `aiclient2api`.
+- `BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh` succeeded inside the fixture Docker network.
+- `BASE_URL=http://new-api:3000 ADMIN_TOKEN=... ADMIN_USER_ID=1 bash scripts/regression.sh` passed: 8 passed, 0 failed.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
 ### 2026-05-19 — CI Docker Fixture Ephemeral DB Seed Fix
 
 **Worker**: codex-ci-docker-fixture-ephemeral-db-worker

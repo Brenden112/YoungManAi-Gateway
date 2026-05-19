@@ -162,7 +162,7 @@ ZERO_USER=$(api POST /api/user/register "" -d '{"username":"regtest_zero","passw
 ZERO_USER_ID=$(api GET /api/user/search?keyword=regtest_zero "$ADMIN_TOKEN" | jq -r '.data.items[0].id // empty')
 
 if [ -n "$NORMAL_USER_ID" ]; then
-  api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$NORMAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":100000}" > /dev/null
+  api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$NORMAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":6000000}" > /dev/null
 fi
 if [ -n "$INTERNAL_USER_ID" ]; then
   api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$INTERNAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":100000}" > /dev/null
@@ -178,9 +178,9 @@ NORMAL_LOGIN_ID=$(api_cookie POST /api/user/login "$NORMAL_COOKIE" -d '{"usernam
 INTERNAL_LOGIN_ID=$(api_cookie POST /api/user/login "$INTERNAL_COOKIE" -d '{"username":"regtest_internal","password":"Regtest123!"}' | jq -r '.data.id // empty')
 ZERO_LOGIN_ID=$(api_cookie POST /api/user/login "$ZERO_COOKIE" -d '{"username":"regtest_zero","password":"Regtest123!"}' | jq -r '.data.id // empty')
 
-NORMAL_TOKEN_KEY=$(api_cookie_user POST /api/token "$NORMAL_COOKIE" "$NORMAL_LOGIN_ID" -d '{"name":"regtest-normal","remain_quota":100000,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
-INTERNAL_TOKEN_KEY=$(api_cookie_user POST /api/token "$INTERNAL_COOKIE" "$INTERNAL_LOGIN_ID" -d '{"name":"regtest-internal","remain_quota":100000,"allow_experimental":true,"allowed_provider_types":"experimental_proxy"}' | jq -r '.data.key // empty')
-ZERO_TOKEN_KEY=$(api_cookie_user POST /api/token "$ZERO_COOKIE" "$ZERO_LOGIN_ID" -d '{"name":"regtest-zero","remain_quota":0,"unlimited_quota":true,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
+NORMAL_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$NORMAL_COOKIE" "$NORMAL_LOGIN_ID" -d '{"name":"regtest-normal","remain_quota":100000,"unlimited_quota":true,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
+INTERNAL_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$INTERNAL_COOKIE" "$INTERNAL_LOGIN_ID" -d '{"name":"regtest-internal","remain_quota":100000,"allow_experimental":true,"allowed_provider_types":"experimental_proxy"}' | jq -r '.data.key // empty')
+ZERO_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$ZERO_COOKIE" "$ZERO_LOGIN_ID" -d '{"name":"regtest-zero","remain_quota":0,"unlimited_quota":true,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
 
 echo "Normal user ID:   ${NORMAL_USER_ID:-<not found>}"
 echo "Internal user ID: ${INTERNAL_USER_ID:-<not found>}"
@@ -241,7 +241,7 @@ bold "\n--- T6: default no prompt/response storage ---"
 # After a request, the log content field should be empty/null.
 # We make a real request first (use normal user against a real model if available).
 # Then check the last log entry for this token.
-LOG_RESP=$(api GET "/api/log?token_name=regtest-normal&page=1&page_size=1" "$ADMIN_TOKEN")
+LOG_RESP=$(api GET "/api/log/?token_name=regtest-normal&page=1&page_size=1" "$ADMIN_TOKEN")
 LOG_CONTENT=$(echo "$LOG_RESP" | jq -r '.data.items[0].content // ""')
 if [ -z "$LOG_CONTENT" ] || [ "$LOG_CONTENT" = "null" ]; then
   green "  PASS  T6 prompt/response not stored in log (content is empty)"

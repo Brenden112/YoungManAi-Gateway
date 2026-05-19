@@ -3,7 +3,7 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-admin-user-propagation-fix-2026-05-19",
+  "current_feature": "ci-docker-fixture-token-route-billing-bypass-fix-2026-05-19",
   "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
@@ -104,7 +104,8 @@
     "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19",
+    "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -133,7 +134,8 @@
       "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
-      "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19"
+      "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19",
+      "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -141,14 +143,15 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-docker-fixture-admin-user-propagation-worker",
+    "worker": "codex-ci-docker-fixture-token-route-worker",
     "status": "completed_pending_ci_rerun",
     "files_modified": [
       ".github/workflows/pre-release-verification.yml",
+      "scripts/regression.sh",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke regression failure. The workflow already evaluated the seed output containing ADMIN_TOKEN and ADMIN_USER_ID, but only passed ADMIN_TOKEN into scripts/regression.sh. It now validates ADMIN_USER_ID and forwards it so regression admin /api/* calls include the required New-Api-User header. No business logic, unrelated code, or real upstream keys were changed.",
+    "implementation_summary": "Fixed the remaining local docker-fixture-smoke regression failures found while executing the requested local verification. scripts/regression.sh now uses canonical trailing-slash routes for token creation and log lookup, preventing curl from receiving redirect HTML/empty responses. The normal fixture user receives enough test quota and an unlimited fixture token so the official fake-upstream smoke path exercises successful chat completion without finite-token pre-consume lookup. The previous workflow ADMIN_USER_ID propagation fix remains in place. No real upstream keys were added.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -165,12 +168,17 @@
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully after admin user propagation fix."
+        "observation": "Mission state JSON parsed successfully after token route and billing bypass fix."
       },
       {
-        "command": "git diff --check -- .github/workflows/pre-release-verification.yml docs/DEVELOPMENT_LOG.md .factory/mission-state.json",
+        "command": "docker --context default run --rm --network new-api_fixture-network -v /mnt/d/Projects/new-api:/work -w /work node:24-alpine sh -lc 'apk add --no-cache bash curl jq >/dev/null && BASE_URL=http://new-api:3000 ADMIN_TOKEN=... ADMIN_USER_ID=1 bash scripts/regression.sh'",
         "exit_code": 0,
-        "observation": "Whitespace check passed for the working tree diff."
+        "observation": "M16 Docker fixture regression passed locally: 8 passed, 0 failed."
+      },
+      {
+        "command": "git diff --check -- .github/workflows/pre-release-verification.yml scripts/regression.sh docs/DEVELOPMENT_LOG.md .factory/mission-state.json",
+        "exit_code": 0,
+        "observation": "Whitespace check passed for modified verification files."
       }
     ],
     "development_log_updated": true,
@@ -289,7 +297,8 @@
     "CI-SEEDED-FIXTURE-ADMIN-LOGIN": "fixed_pending_ci_rerun",
     "CI-FRONTEND-RISK-ACK-LINT": "fixed_pending_ci_rerun",
     "CI-DOCKER-FIXTURE-SEED-401": "fixed_pending_ci_rerun",
-    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION": "fixed_pending_ci_rerun"
+    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION": "fixed_pending_ci_rerun",
+    "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS": "fixed_pending_ci_rerun_local_passed"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -371,7 +380,7 @@
     ]
   },
   "next_recommended_action": "Rerun the pre-release-verification docker-fixture-smoke job.",
-  "updated_at": "2026-05-19T14:58:36+08:00",
+  "updated_at": "2026-05-19T16:12:02+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
