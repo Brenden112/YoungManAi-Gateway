@@ -78,5 +78,5 @@ if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
   exit 1
 fi
 
-echo "Fixture seeded. Run:"
-echo "ADMIN_TOKEN=$ADMIN_TOKEN BASE_URL=$BASE_URL bash scripts/regression.sh"
+echo "Fixture seeded. Export:"
+printf 'ADMIN_TOKEN=%q BASE_URL=%q\n' "$ADMIN_TOKEN" "$BASE_URL"

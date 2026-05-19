@@ -69,6 +69,10 @@ token_estimator_test.go
 node_modules/
 web/**/node_modules/
 web/**/dist/
+!web/default/dist/
+!web/default/dist/index.html
+!web/classic/dist/
+!web/classic/dist/index.html
 web/**/dist-ssr/
 web/**/build/
 web/**/coverage/

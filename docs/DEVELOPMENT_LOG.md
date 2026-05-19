@@ -1081,6 +1081,23 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `docker compose -f docker-compose.fixture.yml config` passed.
 - Frontend local execution remains blocked because `bun` is not installed.
 - MySQL/PostgreSQL local migration runtime remains blocked because services are not available.
+### 2026-05-19 — Pre-release Verification CI Failure Fix
+
+**Worker**: codex-ci-pre-release-verification-fix-worker
+**Summary**: Fixed only the failures reported by the `pre-release-verification` CI log. Added tracked minimal frontend dist entrypoints so root-package Go embed patterns compile during `go test ./...` without requiring a frontend build first, resolved the listed ESLint errors in the default frontend, and corrected the local fixture seed output so the workflow receives `ADMIN_TOKEN` as an environment assignment. No business functionality was added, and no upstream provider keys were used.
+
+**Files modified**: `.gitignore`, `scripts/seed-local-fixture.sh`, `web/default/.gitignore`, `web/default/dist/index.html`, `web/classic/dist/index.html`, `web/default/src/components/risk-acknowledgement-dialog.tsx`, `web/default/src/features/channels/components/channels-table.tsx`, `web/default/src/features/keys/components/api-keys-dialogs.tsx`, `web/default/src/features/system-settings/models/group-ratio-visual-editor.tsx`, `web/default/src/features/system-settings/models/ratio-settings-card.tsx`, `web/default/src/features/system-settings/models/tiered-pricing-editor.tsx`, `web/default/src/features/usage-logs/components/common-logs-filter-bar.tsx`, `web/default/src/features/usage-logs/components/task-logs-filter-bar.tsx`, `web/default/src/lib/theme-radius.ts`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `go test ./... -count=1` could not be rerun locally because `go` is not installed in the current shell.
+- `bun run lint` could not be rerun locally because `bun` is not installed in the current shell and frontend dependencies are absent.
+- Confirmed both `web/default/dist/index.html` and `web/classic/dist/index.html` exist locally and are no longer excluded by the effective ignore rules.
+- No real upstream provider or API key was used.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the jobs that execute `go test ./... -count=1`, `LOCAL_FIXTURE=1 bash scripts/regression.sh`, the seeded local fixture smoke, and `web/default` lint.
+
+---
+
 - Docker runtime smoke remains manual/CI-gated.
 
 **Accepted blockers**:

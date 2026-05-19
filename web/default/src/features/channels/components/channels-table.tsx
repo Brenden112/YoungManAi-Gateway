@@ -43,7 +43,6 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getChannels, searchChannels, getGroups } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
-  CHANNEL_STATUS,
   CHANNEL_STATUS_OPTIONS,
 } from '../constants'
 import {

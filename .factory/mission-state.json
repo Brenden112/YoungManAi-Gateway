@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_milestone": "CI-STAGING-VERIFICATION-SETUP",
-  "current_feature": "ci-staging-verification-setup",
-  "overall_status": "completed_with_blockers",
+  "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
+  "current_feature": "ci-pre-release-verification-failures-2026-05-19",
+  "overall_status": "completed_with_local_toolchain_blockers",
   "completed_milestones": [
     "M0",
     "M1",
@@ -96,7 +96,8 @@
     "PRE-RELEASE-FRONTEND-WAIVER-CI",
     "PRE-RELEASE-CROSS-DB-MIGRATION-CI",
     "PRE-RELEASE-DOCKER-FIXTURE-WAIVER",
-    "PRE-RELEASE-REVIEW-CHECKLIST"
+    "PRE-RELEASE-REVIEW-CHECKLIST",
+    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -117,162 +118,83 @@
       "AUD-022-org-project-token-binding-enforcement",
       "AUD-023-admin-topup-contract",
       "AUD-024-deterministic-local-fixture-smoke",
-      "AUD-025-api-experimental-visibility"
+      "AUD-025-api-experimental-visibility",
+      "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
     ],
     "remaining_critical_issues": [],
-    "next_issue": "manual_acceptance_and_environment_blocker_closure"
+    "next_issue": "rerun_pre_release_verification_ci"
   },
   "last_handoff": {
-    "phase": "ci-staging-verification-setup",
-    "milestone": "CI-STAGING-VERIFICATION-SETUP",
-    "worker": "codex-ci-staging-verification-worker",
-    "status": "completed_with_blockers",
+    "phase": "ci-pre-release-verification-fix",
+    "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
+    "worker": "codex-ci-pre-release-verification-fix-worker",
+    "status": "completed_with_local_toolchain_blockers",
     "files_modified": [
-      "web/default/package.json",
-      "web/default/src/features/channels/types.ts",
-      "web/default/src/features/channels/components/channels-table.tsx",
-      "web/default/src/features/channels/lib/channel-visibility.ts",
-      "web/default/src/features/channels/lib/channel-visibility.test.ts",
-      "tests/migration/migration_schema_test.go",
-      "scripts/check-migrations.sh",
-      "scripts/ci-verify.sh",
-      "scripts/ci-migration-check.sh",
-      "scripts/fake-openai-provider.mjs",
+      ".gitignore",
       "scripts/seed-local-fixture.sh",
-      "scripts/regression.sh",
-      "docker-compose.fixture.yml",
-      ".github/workflows/pre-release-hardening.yml",
-      ".github/workflows/pre-release-verification.yml",
-      "docs/STAGING_VERIFICATION_RUNBOOK.md",
-      "docs/WAIVERS/FRONTEND_TEST_INFRA_WAIVER.md",
-      "docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md",
-      "docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md",
-      "docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md",
-      "docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md",
-      "docs/CODEX_AUDIT_REPORT.md",
-      "docs/CODEX_BUG_LIST.md",
-      "docs/CODEX_FIX_RECOMMENDATIONS.md",
-      "docs/CODEX_FEATURE_TEST_RESULTS.md",
-      "docs/CODEX_SECURITY_FINDINGS.md",
+      "web/default/.gitignore",
+      "web/default/dist/index.html",
+      "web/classic/dist/index.html",
+      "web/default/src/components/risk-acknowledgement-dialog.tsx",
+      "web/default/src/features/channels/components/channels-table.tsx",
+      "web/default/src/features/keys/components/api-keys-dialogs.tsx",
+      "web/default/src/features/system-settings/models/group-ratio-visual-editor.tsx",
+      "web/default/src/features/system-settings/models/ratio-settings-card.tsx",
+      "web/default/src/features/system-settings/models/tiered-pricing-editor.tsx",
+      "web/default/src/features/usage-logs/components/common-logs-filter-bar.tsx",
+      "web/default/src/features/usage-logs/components/task-logs-filter-bar.tsx",
+      "web/default/src/lib/theme-radius.ts",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Created CI/staging verification infrastructure for pending environment blockers. No business logic was changed; all runtime provider checks use fake/local fixtures only.",
+    "implementation_summary": "Fixed only the pre-release-verification CI failures from the provided log: root Go embed setup now has minimal tracked frontend dist entrypoints, the listed frontend lint errors were resolved, and the fixture seed script now emits pure environment assignments so ADMIN_TOKEN is available to the workflow. No new business functionality or real upstream keys were used.",
     "blockers_closed": [],
-    "blockers_moved_to_ci": [
-      "blocked_test_infra_frontend",
-      "blocked_external_dependency_cross_db_runtime",
-      "skipped_environment_docker_runtime",
-      "final_go_verification_blocked"
-    ],
-    "waiver_files_created": [
-      "docs/WAIVERS/FRONTEND_TEST_INFRA_WAIVER.md",
-      "docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md",
-      "docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md",
-      "docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md"
-    ],
-    "ci_files_created_or_modified": [
-      ".github/workflows/pre-release-verification.yml"
-    ],
-    "scripts_created_or_modified": [
-      "scripts/ci-verify.sh",
-      "scripts/ci-migration-check.sh",
-      "scripts/regression.sh"
-    ],
-    "runbooks_created": [
-      "docs/STAGING_VERIFICATION_RUNBOOK.md"
-    ],
-    "smoke_fixture_files_created_or_modified": [
-      "docker-compose.fixture.yml",
-      "scripts/fake-openai-provider.mjs",
-      "scripts/seed-local-fixture.sh",
-      "scripts/regression.sh"
-    ],
+    "blockers_moved_to_ci": [],
+    "waiver_files_created": [],
+    "ci_files_created_or_modified": [],
+    "scripts_created_or_modified": [],
+    "runbooks_created": [],
+    "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "bash scripts/ci-verify.sh",
-        "exit_code": 2,
-        "observation": "Verification script executed locally; reported Go checks blocked because go is missing, frontend blocked because web/default dependencies are absent, and git diff check passed."
-      },
-      {
-        "command": "docker compose config",
+        "command": "git ls-files --others --exclude-standard web/default/dist/index.html web/classic/dist/index.html",
         "exit_code": 0,
-        "observation": "Base compose config parsed successfully without starting runtime."
+        "observation": "Both dist index files are no longer excluded by effective ignore rules and are ready to be tracked for Go embed."
       },
       {
-        "command": "git diff --check",
+        "command": "ls -l web/default/dist/index.html web/classic/dist/index.html",
         "exit_code": 0,
-        "observation": "No whitespace errors."
-      },
-      {
-        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
-        "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully."
-      },
-      {
-        "command": "which go",
-        "exit_code": 1,
-        "observation": "No go binary found in PATH."
-      },
-      {
-        "command": "go version",
-        "exit_code": 127,
-        "observation": "Blocked in current shell: go binary not found."
-      },
-      {
-        "command": "ls -l /tmp/go2510/bin/go",
-        "exit_code": 2,
-        "observation": "/tmp/go2510/bin/go does not exist."
-      },
-      {
-        "command": "find /tmp -path \"*/bin/go\" -type f 2>/dev/null | head",
-        "exit_code": 0,
-        "observation": "No Go binary found under /tmp."
-      },
-      {
-        "command": "echo $PATH",
-        "exit_code": 0,
-        "observation": "PATH inspected; no valid Go toolchain location found."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes",
-        "exit_code": 1,
-        "observation": "Attempted fixture-scoped cleanup; Docker command failed before compose action with `Failed to initialize: protocol not available`. No broader prune/delete was attempted."
+        "observation": "Confirmed both embedded index files exist locally."
       },
       {
         "command": "go test ./... -count=1",
         "exit_code": 127,
-        "observation": "Blocked in current shell: go binary not found."
+        "observation": "Blocked locally because go is not installed in the current shell."
       },
       {
-        "command": "go vet ./...",
+        "command": "bun run lint",
         "exit_code": 127,
-        "observation": "Blocked in current shell: go binary not found."
+        "observation": "Blocked locally because bun is not installed in the current shell and frontend dependencies are absent."
       },
       {
-        "command": "LOCAL_FIXTURE=1 bash scripts/regression.sh",
-        "exit_code": 127,
-        "observation": "Blocked in current shell: script depends on /tmp/go2510/bin/go, which is not present."
-      },
-      {
-        "command": "docker compose config",
+        "command": "bash -n scripts/seed-local-fixture.sh",
         "exit_code": 0,
-        "observation": "Base compose config parsed successfully without starting runtime."
-      },
-      {
-        "command": "git diff --check",
-        "exit_code": 0,
-        "observation": "No whitespace errors."
+        "observation": "Fixture seed script syntax is valid after changing the final output to environment assignments."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
         "observation": "Mission state JSON parsed successfully."
+      },
+      {
+        "command": "node --version",
+        "exit_code": 0,
+        "observation": "Node is available; package-manager and Go toolchain commands remain blocked locally."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "Run pre-release verification workflow in CI/staging and close accepted blockers before production."
+    "next_recommended_action": "Rerun pre-release-verification jobs for go-test-vet, local-fixture-regression, seeded local fixture smoke, and frontend lint."
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -462,8 +384,8 @@
       "A16.2.1"
     ]
   },
-  "next_recommended_action": "Run pre-release verification workflow in CI/staging and close accepted blockers before production.",
-  "updated_at": "2026-05-17T23:30:00+08:00",
+  "next_recommended_action": "Rerun pre-release-verification jobs for go-test-vet, local-fixture-regression, seeded local fixture smoke, and frontend lint.",
+  "updated_at": "2026-05-19T00:00:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -517,7 +439,8 @@
     "AUD-022-org-project-token-binding-enforcement",
     "AUD-023-admin-topup-contract",
     "AUD-024-deterministic-local-fixture-smoke",
-    "AUD-025-api-experimental-visibility"
+    "AUD-025-api-experimental-visibility",
+    "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19"
   ],
   "blocked_issues": [],
   "remaining_issues": [],
@@ -526,19 +449,21 @@
     "gofmt": "passed_on_modified_go_files",
     "go_test_model": "blocked_go_binary_missing_in_current_shell",
     "go_test_middleware": "blocked_go_binary_missing_in_current_shell",
-    "go_test_all": "blocked_go_binary_missing_in_current_shell",
+    "go_test_all": "fixed_for_ci_embed_missing_dist_blocked_local_go_binary_missing",
     "go_vet_all": "blocked_go_binary_missing_in_current_shell",
     "git_diff_check": "passed",
     "mission_state_json": "passed",
     "docker_compose_config": "passed",
-    "local_fixture_smoke": "blocked_go2510_missing_in_current_shell",
-    "frontend": "pending_ci_verification",
+    "local_fixture_smoke": "fixed_for_ci_embed_missing_dist_blocked_local_go_binary_missing",
+    "frontend": "lint_errors_fixed_blocked_local_bun_missing",
     "sqlite_migration_smoke": "passed",
     "fixture_compose_config": "passed",
     "cross_db_mysql_postgres": "pending_ci_verification",
     "docker_runtime_smoke": "pending_ci_verification",
     "docker_fixture_cleanup": "blocked_protocol_not_available",
-    "final_go_verification": "pending_ci_verification"
+    "final_go_verification": "pending_ci_verification",
+    "pre_release_verification_ci_failure_fix": "completed_with_local_toolchain_blockers",
+    "fixture_seed_admin_token_export": "passed_script_syntax_pending_ci_runtime"
   },
   "final_security_status": {
     "critical_findings_remaining": 0,
@@ -625,6 +550,7 @@
   ],
   "final_verification_refresh_status": "completed_with_environment_blockers",
   "ci_staging_verification_setup_status": "completed_with_blockers",
+  "ci_pre_release_verification_fix_status": "completed_with_local_toolchain_blockers",
   "go_toolchain_status": "missing",
   "docker_cleanup_status": "blocked_protocol_not_available",
   "blockers_moved_to_ci": [
