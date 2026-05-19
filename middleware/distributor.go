@@ -149,6 +149,10 @@ func Distribute() func(c *gin.Context) {
 						ProviderPolicy:    service.GetProviderTypePolicyForRequest(c),
 					})
 					if err != nil {
+						if !service.IsInternalUser(c) && hasEnabledExperimentalProxyModel(usingGroup, modelRequest.Model) {
+							abortWithOpenAiMessage(c, http.StatusForbidden, "experimental_proxy channels require internal access")
+							return
+						}
 						showGroup := usingGroup
 						if usingGroup == "auto" {
 							showGroup = fmt.Sprintf("auto(%s)", selectGroup)
@@ -163,6 +167,10 @@ func Distribute() func(c *gin.Context) {
 						return
 					}
 					if channel == nil {
+						if !service.IsInternalUser(c) && hasEnabledExperimentalProxyModel(usingGroup, modelRequest.Model) {
+							abortWithOpenAiMessage(c, http.StatusForbidden, "experimental_proxy channels require internal access")
+							return
+						}
 						abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgDistributorNoAvailableChannel, map[string]any{"Group": usingGroup, "Model": modelRequest.Model}), types.ErrorCodeModelNotFound)
 						return
 					}
@@ -192,6 +200,25 @@ func Distribute() func(c *gin.Context) {
 			service.RecordChannelAffinity(c, channel.Id)
 		}
 	}
+}
+
+func hasEnabledExperimentalProxyModel(group string, modelName string) bool {
+	if group == "" || modelName == "" {
+		return false
+	}
+	modelNames := []string{modelName}
+	if normalized := ratio_setting.FormatMatchingModelName(modelName); normalized != "" && normalized != modelName {
+		modelNames = append(modelNames, normalized)
+	}
+
+	var count int64
+	err := model.DB.Model(&model.Ability{}).
+		Joins("JOIN channels ON channels.id = abilities.channel_id").
+		Where(&model.Ability{Group: group, Enabled: true}).
+		Where("abilities.model IN ?", modelNames).
+		Where("channels.status = ? AND channels.provider_type = ?", common.ChannelStatusEnabled, constant.ProviderTypeExperimentalProxy).
+		Count(&count).Error
+	return err == nil && count > 0
 }
 
 // getModelFromRequest 从请求中读取模型信息

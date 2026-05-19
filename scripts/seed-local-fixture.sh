@@ -124,14 +124,20 @@ api_cookie POST /api/channel/ \
     }
   }" | jq -e '.success == true' >/dev/null
 
-ADMIN_TOKEN="$(api_cookie POST /api/token/ \
+ADMIN_API_TOKEN="$(api_cookie POST /api/token/ \
   -d '{"name":"fixture-admin-smoke","remain_quota":100000,"unlimited_quota":true,"allow_experimental":true,"allowed_provider_types":"official_cloud,experimental_proxy"}' \
   | jq -r '.data.key')"
 
-if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+if [ -z "$ADMIN_API_TOKEN" ] || [ "$ADMIN_API_TOKEN" = "null" ]; then
   echo "failed to create fixture admin token" >&2
   exit 1
 fi
 
+ADMIN_TOKEN="$(api_cookie GET /api/user/token | jq -r '.data // empty')"
+if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+  echo "failed to create fixture admin access token" >&2
+  exit 1
+fi
+
 echo "Fixture seeded. Export:"
-printf 'ADMIN_TOKEN=%q BASE_URL=%q\n' "$ADMIN_TOKEN" "$BASE_URL"
+printf 'ADMIN_TOKEN=%q ADMIN_USER_ID=%q BASE_URL=%q\n' "$ADMIN_TOKEN" "$ADMIN_USER_ID" "$BASE_URL"

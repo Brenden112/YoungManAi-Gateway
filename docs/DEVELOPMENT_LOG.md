@@ -1212,8 +1212,6 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
 
----
-
 ### 2026-05-19 — CI Docker Fixture Ephemeral DB Seed Fix
 
 **Worker**: codex-ci-docker-fixture-ephemeral-db-worker
@@ -1260,5 +1258,24 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `docker compose -f docker-compose.fixture.yml config` passed.
 - `.factory/mission-state.json` parsed successfully.
 - `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Regression Auth and Quota Fix
+
+**Worker**: codex-ci-docker-fixture-regression-auth-quota-worker
+**Summary**: Fixed only the failures shown in the `pre-release-verification` docker fixture regression log. The seed script now exports a dashboard admin access token plus `ADMIN_USER_ID` for admin API calls. The regression script now sends `New-Api-User` where the dashboard auth middleware requires it, reads user search results from `.data.items`, preserves the internal user's username when changing group, creates user API keys through authenticated cookie sessions, tops up only the normal/internal fixture users, and keeps the zero-balance user on a valid unlimited API key so the request reaches the insufficient-balance path. Insufficient wallet quota now returns HTTP 402, matching the regression contract, and direct normal-user requests for enabled experimental-only models return HTTP 403 instead of falling through to a 503 no-channel response.
+
+**Files modified**: `scripts/seed-local-fixture.sh`, `scripts/regression.sh`, `middleware/distributor.go`, `service/pre_consume_quota.go`, `service/billing_session.go`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh` passed.
+- `bash -n scripts/regression.sh` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+- `gofmt` and targeted Go tests could not run locally because the current shell has no Go toolchain (`gofmt` and `go` not found).
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
