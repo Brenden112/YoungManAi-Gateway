@@ -5,6 +5,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/pre-release-verification.yml'
+      - '.env.example'
+      - '.env.staging.example'
+      - '.gitignore'
       - 'common/**'
       - 'controller/**'
       - 'middleware/**'
@@ -23,6 +26,13 @@ env:
   GO_VERSION_FILE: go.mod
 
 jobs:
+  config-secret-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-config-secrets.sh
+
   go-test-vet:
     runs-on: ubuntu-latest
     timeout-minutes: 30

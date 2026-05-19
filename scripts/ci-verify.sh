@@ -83,6 +83,8 @@ install_frontend_deps_if_needed() {
 echo "=== CI verification ==="
 echo "No real upstream provider or API key is used by this script."
 
+run_check "bash scripts/check-config-secrets.sh" bash scripts/check-config-secrets.sh
+
 if command -v go >/dev/null 2>&1; then
   go version
   run_check "go test ./model/... -count=1" go test ./model/... -count=1

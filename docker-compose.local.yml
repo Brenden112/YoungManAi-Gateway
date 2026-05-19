@@ -1,3 +1,6 @@
+# Local fixture/development only. Not for production.
+# Uses local placeholder credentials and no real upstream provider keys.
+#
 # Local all-in-one deployment — SQLite + Redis
 #
 # Usage:

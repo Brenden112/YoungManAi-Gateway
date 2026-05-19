@@ -1214,6 +1214,29 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 
 ---
 
+### 2026-05-19 — Staging Verification
+
+**Worker**: codex-staging-verification-worker
+**Status**: `completed_with_blockers`
+**Summary**: Ran staging verification from `docs/STAGING_VERIFICATION_RUNBOOK.md` without adding business features or changing core logic. The check used local static inspection, compose validation, fixture script review, and Pre-release verification #13 CI evidence. No real upstream provider key was used, no paid provider was called, and no secret/prompt/response was written to docs.
+
+**Files modified**: `docs/STAGING_VERIFICATION_REPORT.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `.env.example` and local `.env*` scan found no real secret leakage; only `.env.example` exists locally.
+- `docker-compose.fixture.yml` uses local Redis, SQLite tmpfs, and `scripts/fake-openai-provider.mjs`; it does not depend on real providers.
+- API key hashing, ProviderAccount encrypted storage/runtime decryption, log redaction, default no prompt/response storage, experimental access control, provider-type allowlists, org/project token binding, and zero-balance rejection remain closed by code inspection and CI #13 evidence.
+- `bash scripts/ci-verify.sh` exited 2 with local environment blockers: missing Go and missing frontend dependencies. `git diff --check` passed.
+- `LOCAL_FIXTURE=1 bash scripts/regression.sh` exited 2 because Go is missing.
+- `docker compose config` and `docker compose -f docker-compose.fixture.yml config` passed.
+- `docker compose -f docker-compose.fixture.yml up -d --build` and fixture cleanup were blocked because Docker CLI failed with `Failed to initialize: protocol not available`.
+
+**Deployment readiness**: `staging_ready_with_blockers`
+**Production readiness**: `not_ready`
+**Next recommended action**: Resolve staging runtime blockers before gray test, or re-run the same fixture/API/frontend checks on a Docker-capable staging host with Go and Bun installed.
+
+---
+
 ### 2026-05-19 — Post-CI Verification Closure
 
 **Worker**: codex-post-ci-verification-closure-worker
@@ -1240,6 +1263,23 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - Local Go checks were not run because `go` is unavailable in the current shell; this does not block closure because CI `go-test-vet` passed.
 
 **Next recommended action**: Run staging verification and internal gray test before production using `docs/STAGING_VERIFICATION_RUNBOOK.md`.
+
+---
+
+### 2026-05-19 — Staging Deployment Config Secret Hardening
+
+**Worker**: codex-staging-hardening-worker
+**Summary**: Fixed/mitigated the default compose example-credential risk without adding business features or changing core runtime logic. `docker-compose.yml` now reads database/cache/session/encryption secrets from environment variables with local-only placeholders for syntax validation. Added `.env.staging.example` as a placeholder-only staging template, tightened `.gitignore` for staging env examples and key material, marked local/fixture compose files as non-production, and added `scripts/check-config-secrets.sh` to local CI and pre-release verification.
+
+**Files modified**: `docker-compose.yml`, `docker-compose.fixture.yml`, `docker-compose.local.yml`, `.env.example`, `.gitignore`, `scripts/ci-verify.sh`, `.github/workflows/pre-release-verification.yml`, `docs/STAGING_VERIFICATION_REPORT.md`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/STAGING_VERIFICATION_RUNBOOK.md`, `docs/CODEX_AUDIT_REPORT.md`, `docs/CODEX_FIX_RECOMMENDATIONS.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Files created**: `.env.staging.example`, `scripts/check-config-secrets.sh`
+
+**Validation**:
+- `bash scripts/check-config-secrets.sh` passed.
+- Additional staging verification commands were run after config hardening; local Go/Bun/Docker runtime blockers remain recorded where applicable.
+
+**Next recommended action**: run staging runtime verification in isolated environment.
 
 ---
 

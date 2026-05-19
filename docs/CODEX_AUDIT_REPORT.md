@@ -94,6 +94,14 @@ command -v golangci-lint
 
 Do not proceed with additional feature development. Continue focused remediation with `AUD-022-org-project-token-binding-enforcement`, then add deterministic runtime fixtures and rerun the feature-test-matrix.
 
+## Staging Configuration Hardening Update — 2026-05-19
+
+Status: `completed_with_blockers`.
+
+No business logic was changed. The default `docker-compose.yml` credential risk is fixed/mitigated: database, Redis, session, and encryption secrets now come from environment variables with local-only placeholders for syntax validation. `.env.staging.example` was added as the staging template, `.gitignore` keeps real env files and key material out of git, and `scripts/check-config-secrets.sh` is wired into local CI and pre-release verification.
+
+Deployment readiness is `staging_config_hardened_with_blockers`; production readiness remains `not_ready`. Next recommended action: run staging runtime verification in an isolated environment.
+
 ## Full Remediation Update — 2026-05-17 22:05 +08:00
 
 Status: `completed_with_blockers`.
@@ -166,6 +174,6 @@ Closure summary:
 - Medium blockers caused by local environment are now `closed_by_ci`: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, and `final_go_verification_blocked`.
 - `features_failed = 0`
 - CI verification passed.
-- `deployment_readiness = staging_ready`
+- `deployment_readiness = staging_config_hardened_with_blockers`
 
-This does not make the release `production_ready`. Recommended next action: run staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, then complete environment-variable review, real deployment topology review, and manual security sign-off.
+This does not make the release `production_ready`. Recommended next action: run staging runtime verification in an isolated environment, then complete deployment topology review, secret-source review, and manual security sign-off.

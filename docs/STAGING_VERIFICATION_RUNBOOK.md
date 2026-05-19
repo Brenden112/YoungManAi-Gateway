@@ -2,7 +2,7 @@
 
 Date: 2026-05-18
 
-Status: `pending_ci_verification`
+Status: `staging_config_hardened_with_blockers`
 
 This runbook verifies release readiness in a stable CI or staging environment. Do not use real upstream provider keys, real customer tokens, real credentials, real prompts, or real responses. All provider traffic must use the fake provider or local fixture.
 
@@ -16,10 +16,13 @@ This runbook verifies release readiness in a stable CI or staging environment. D
 - Fake OpenAI-compatible provider from `scripts/fake-openai-provider.mjs`.
 - Fixture compose file: `docker-compose.fixture.yml`.
 - No production `.env` mounted into the fixture.
+- Copy `.env.staging.example` to an untracked `.env.staging` for staging deployments and replace every placeholder with a controlled staging secret.
+- Never commit `.env`, `.env.*`, provider keys, JWT/session secrets, encryption secrets, database passwords, prompts, or responses.
 
 ## Required Commands
 
 ```bash
+bash scripts/check-config-secrets.sh
 bash scripts/ci-verify.sh
 docker compose config
 LOCAL_FIXTURE=1 bash scripts/regression.sh
@@ -50,6 +53,8 @@ Verify these behaviors against the seeded fixture:
 ## Manual Checks
 
 - `.env` and CI secrets contain no real upstream API keys for this fixture.
+- Default `docker-compose.yml` does not contain hardcoded deployable credentials.
+- `.env.example` and `.env.staging.example` contain placeholders only.
 - ProviderAccount credentials are encrypted at rest.
 - API keys are not stored in plaintext.
 - `experimental_proxy` is disabled/internal-only by default.
@@ -63,7 +68,8 @@ Verify these behaviors against the seeded fixture:
 - `critical_findings_remaining = 0`.
 - `high_findings_remaining = 0`.
 - All accepted blockers are closed by CI/staging evidence or explicitly signed off by a human release owner.
-- `deployment_readiness` may move from `needs_manual_review` to `staging_ready` only after the above evidence is reviewed.
+- `deployment_readiness` may remain `staging_config_hardened_with_blockers` or move to `staging_ready_with_blockers` only after the above evidence is reviewed.
+- `production_readiness` must remain `not_ready` until staging runtime verification, deployment topology review, secret-source review, and manual security sign-off are complete.
 
 ## Failure Handling
 

@@ -1,3 +1,7 @@
+# Local fixture only. Not for production.
+# Uses fake provider traffic, SQLite tmpfs, Redis without exposed credentials,
+# and placeholder fixture secrets. Do not put real provider keys here.
+
 services:
   new-api:
     build:

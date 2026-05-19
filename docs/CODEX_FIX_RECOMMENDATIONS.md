@@ -40,9 +40,11 @@
 9. Fixed 2026-05-17: redact all log metadata under default privacy mode (`AUD-019`).
    - Result: `params.Other`, JSON strings, plain strings, and error messages are centrally sanitized.
 
-10. Harden compose secrets.
-   - Replace production defaults with required env vars.
-   - Keep `docker-compose.local.yml` explicitly local-only.
+10. Fixed/mitigated 2026-05-19: Harden compose secrets.
+   - Default `docker-compose.yml` now reads sensitive values from environment variables and keeps only local-only placeholders for syntax validation.
+   - `.env.staging.example` provides placeholder staging configuration; real `.env.staging` files must remain untracked.
+   - `docker-compose.fixture.yml` and `docker-compose.local.yml` are explicitly marked local/fixture only and not for production.
+   - `scripts/check-config-secrets.sh` is included in local CI and pre-release verification.
 
 ## Priority 2: Validation And Test Coverage
 
@@ -164,7 +166,7 @@ Current recommendation state:
 - `high_findings_remaining = 0`
 - `features_failed = 0`
 - CI verification passed.
-- `deployment_readiness = staging_ready`
-- `recommended_next_action = run staging manual verification using docs/STAGING_VERIFICATION_RUNBOOK.md`
+- `deployment_readiness = staging_config_hardened_with_blockers`
+- `recommended_next_action = run staging runtime verification in isolated environment`
 
 Do not mark the release `production_ready` from CI alone. Production still requires staging verification, environment-variable review, real deployment topology review, and manual security sign-off.
