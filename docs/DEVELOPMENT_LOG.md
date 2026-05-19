@@ -1194,3 +1194,20 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `gofmt`, Go migration tests, and frontend lint could not be run locally because the current shell has no Go/Bun toolchain and `web/default/node_modules` is absent.
 
 **Next recommended action**: Rerun the `pre-release-verification` CI jobs that failed in the provided log: cross-db migration check, seeded local fixture regression/smoke, and frontend lint.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Seed 401 Fix
+
+**Worker**: codex-ci-docker-fixture-seed-worker
+**Summary**: Fixed only the provided `docker-fixture-smoke` seed failure where admin login returned 401 twice and `ADMIN_TOKEN` was missing. The pre-release verification workflow now resets the fixture compose state, including volumes, before building and starting the fixture so the seed script does not inherit an already-initialized SQLite database with unknown admin credentials.
+
+**Files modified**: `.github/workflows/pre-release-verification.yml`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check` passed.
+- `docker compose -f docker-compose.fixture.yml config` could not run locally because Docker is unavailable in this WSL shell.
+- Docker fixture runtime could not be rerun locally from this shell.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
