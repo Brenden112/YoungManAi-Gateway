@@ -1214,6 +1214,24 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 
 ---
 
+### 2026-05-19 — CI Docker Fixture AddChannel Cache Refresh Fix
+
+**Worker**: codex-ci-docker-fixture-add-channel-cache-worker
+**Summary**: Fixed the remaining M16 regression failure where `GET /v1/models` passed for a normal user but `POST /v1/chat/completions` against the seeded `official_cloud` fixture channel returned HTTP 503. `AddChannel` now refreshes the channel route cache immediately after successful channel insertion, so freshly seeded official and experimental fixture channels are available to the relay path without waiting for the background cache sync interval. No real upstream provider keys were added.
+
+**Files modified**: `controller/channel.go`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/regression.sh scripts/seed-local-fixture.sh` passed.
+- Rebuilt the Docker fixture image successfully with the cache-refresh change.
+- Seeded the fake-provider fixture via helper container on `new-api_fixture-network`.
+- `scripts/regression.sh` passed against the rebuilt fixture: 8 passed, 0 failed. T1 official chat returned HTTP 200.
+- Targeted Go tests passed via Docker Go toolchain: `go test ./controller ./model -run 'TestAUD025|TestAdminManualTopUp|TestNormalUserManualTopUp|TestAdminManualTopUpRejects|TestAUD021|TestAUD022' -count=1`.
+
+**Next recommended action**: Rerun the remote `pre-release-verification` workflow to confirm the GitHub Actions docker-fixture-smoke job is green.
+
+---
+
 ### 2026-05-19 — CI Docker Fixture Regression Token Route and Billing Bypass Fix
 
 **Worker**: codex-ci-docker-fixture-token-route-worker

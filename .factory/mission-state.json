@@ -3,7 +3,7 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-token-route-billing-bypass-fix-2026-05-19",
+  "current_feature": "ci-docker-fixture-add-channel-cache-refresh-fix-2026-05-19",
   "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
@@ -105,7 +105,8 @@
     "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19",
+    "CI-DOCKER-FIXTURE-ADD-CHANNEL-CACHE-REFRESH-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -135,7 +136,8 @@
       "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19",
-      "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19"
+      "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19",
+      "CI-DOCKER-FIXTURE-ADD-CHANNEL-CACHE-REFRESH-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -143,15 +145,14 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-docker-fixture-token-route-worker",
+    "worker": "codex-ci-docker-fixture-add-channel-cache-worker",
     "status": "completed_pending_ci_rerun",
     "files_modified": [
-      ".github/workflows/pre-release-verification.yml",
-      "scripts/regression.sh",
+      "controller/channel.go",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed the remaining local docker-fixture-smoke regression failures found while executing the requested local verification. scripts/regression.sh now uses canonical trailing-slash routes for token creation and log lookup, preventing curl from receiving redirect HTML/empty responses. The normal fixture user receives enough test quota and an unlimited fixture token so the official fake-upstream smoke path exercises successful chat completion without finite-token pre-consume lookup. The previous workflow ADMIN_USER_ID propagation fix remains in place. No real upstream keys were added.",
+    "implementation_summary": "Fixed the remaining M16 docker fixture regression failure where normal users could list official_cloud models but chat against the freshly seeded official fixture channel returned HTTP 503. AddChannel now refreshes the channel route cache immediately after successful insertion, so seed-created channels are routable without waiting for the background sync interval. No real upstream keys were added.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -161,29 +162,34 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "bash -n scripts/regression.sh",
+        "command": "bash -n scripts/regression.sh scripts/seed-local-fixture.sh",
         "exit_code": 0,
-        "observation": "Regression script syntax check passed."
+        "observation": "Regression and fixture seed script syntax checks passed."
       },
       {
-        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
+        "command": "docker --context default compose -f docker-compose.fixture.yml up -d --build",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully after token route and billing bypass fix."
+        "observation": "Rebuilt the local Docker fixture image with the AddChannel cache refresh fix and started it on an alternate local port because port 3000 was occupied."
+      },
+      {
+        "command": "docker --context default run --rm --network new-api_fixture-network -v /mnt/d/Projects/new-api:/work -w /work node:24-alpine sh -lc 'apk add --no-cache bash curl jq >/dev/null && BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh'",
+        "exit_code": 0,
+        "observation": "Seeded the fake-provider fixture and emitted ADMIN_TOKEN plus ADMIN_USER_ID."
       },
       {
         "command": "docker --context default run --rm --network new-api_fixture-network -v /mnt/d/Projects/new-api:/work -w /work node:24-alpine sh -lc 'apk add --no-cache bash curl jq >/dev/null && BASE_URL=http://new-api:3000 ADMIN_TOKEN=... ADMIN_USER_ID=1 bash scripts/regression.sh'",
         "exit_code": 0,
-        "observation": "M16 Docker fixture regression passed locally: 8 passed, 0 failed."
+        "observation": "M16 Docker fixture regression passed locally: 8 passed, 0 failed; T1 official_cloud chat returned HTTP 200."
       },
       {
-        "command": "git diff --check -- .github/workflows/pre-release-verification.yml scripts/regression.sh docs/DEVELOPMENT_LOG.md .factory/mission-state.json",
+        "command": "docker --context default run --rm -v /mnt/d/Projects/new-api:/work -w /work golang:1.26.1-alpine sh -lc 'GOCACHE=/tmp/go-build-cache GOPATH=/tmp/go-path /usr/local/go/bin/go test ./controller ./model -run \"TestAUD025|TestAdminManualTopUp|TestNormalUserManualTopUp|TestAdminManualTopUpRejects|TestAUD021|TestAUD022\" -count=1'",
         "exit_code": 0,
-        "observation": "Whitespace check passed for modified verification files."
+        "observation": "Targeted controller and model Go tests passed via Docker Go toolchain."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "Rerun the pre-release-verification docker-fixture-smoke job."
+    "next_recommended_action": "Rerun the remote pre-release-verification workflow to confirm GitHub Actions docker-fixture-smoke is green."
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -456,16 +462,17 @@
     "sqlite_migration_smoke": "passed",
     "fixture_compose_config": "passed",
     "cross_db_mysql_postgres": "pending_ci_verification",
-    "docker_runtime_smoke": "pending_ci_verification",
-    "docker_fixture_cleanup": "blocked_protocol_not_available",
-    "final_go_verification": "pending_ci_verification",
-    "pre_release_verification_ci_failure_fix": "completed_pending_ci_rerun",
+    "docker_runtime_smoke": "passed_local_m16_fixture_regression_8_of_8_pending_ci_rerun",
+    "docker_fixture_cleanup": "passed_after_local_verification",
+    "final_go_verification": "targeted_controller_model_tests_passed_via_docker_pending_full_ci",
+    "pre_release_verification_ci_failure_fix": "completed_local_docker_fixture_passed_pending_ci_rerun",
     "fixture_seed_admin_token_export": "passed_script_syntax_pending_ci_runtime",
     "migration_schema_column_assertion": "fixed_pending_ci_cross_db_rerun",
     "fixture_seed_setup_before_login": "fixed_pending_ci_runtime_rerun",
     "risk_acknowledgement_lint": "fixed_pending_ci_frontend_lint_rerun",
     "docker_fixture_seed_admin_login_401": "fixed_pending_ci_docker_fixture_smoke_rerun",
-    "docker_fixture_pre_start_volume_reset": "configured_pending_ci_docker_fixture_smoke_rerun"
+    "docker_fixture_pre_start_volume_reset": "configured_pending_ci_docker_fixture_smoke_rerun",
+    "docker_fixture_add_channel_cache_refresh": "passed_local_m16_fixture_regression_8_of_8_pending_ci_rerun"
   },
   "final_security_status": {
     "critical_findings_remaining": 0,
@@ -553,8 +560,8 @@
   "final_verification_refresh_status": "completed_with_environment_blockers",
   "ci_staging_verification_setup_status": "completed_with_blockers",
   "ci_pre_release_verification_fix_status": "completed_with_local_toolchain_blockers",
-  "go_toolchain_status": "missing",
-  "docker_cleanup_status": "blocked_protocol_not_available",
+  "go_toolchain_status": "missing_in_shell_available_via_docker",
+  "docker_cleanup_status": "passed_after_local_verification",
   "blockers_moved_to_ci": [
     "blocked_test_infra_frontend",
     "blocked_external_dependency_cross_db_runtime",
