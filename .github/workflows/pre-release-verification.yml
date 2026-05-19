@@ -116,7 +116,8 @@ jobs:
           ADMIN_LINE="$(BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh | tail -n 1)"
           eval "$ADMIN_LINE"
           : "${ADMIN_TOKEN:?seed-local-fixture.sh did not emit ADMIN_TOKEN}"
-          BASE_URL=http://localhost:3000 ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/regression.sh
+          : "${ADMIN_USER_ID:?seed-local-fixture.sh did not emit ADMIN_USER_ID}"
+          BASE_URL=http://localhost:3000 ADMIN_TOKEN="$ADMIN_TOKEN" ADMIN_USER_ID="$ADMIN_USER_ID" bash scripts/regression.sh
       - name: Fixture cleanup
         if: always()
         run: docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes

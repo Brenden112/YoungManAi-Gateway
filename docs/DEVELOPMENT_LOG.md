@@ -1279,3 +1279,19 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - `gofmt` and targeted Go tests could not run locally because the current shell has no Go toolchain (`gofmt` and `go` not found).
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Regression Admin User Propagation Fix
+
+**Worker**: codex-ci-docker-fixture-admin-user-propagation-worker
+**Summary**: Fixed only the provided `pre-release-verification` regression failure where setup printed `<not found>` for all test users, normal model listing returned 401, admin disable returned a non-success response, quota checks fell through to 503, and log parsing failed. The seed step already emitted `ADMIN_USER_ID`, but the workflow did not pass it into `scripts/regression.sh`, so admin `/api/*` calls lacked the required `New-Api-User` header. The workflow now validates and forwards `ADMIN_USER_ID` with `ADMIN_TOKEN` when running the regression suite. No business logic or real upstream keys were changed.
+
+**Files modified**: `.github/workflows/pre-release-verification.yml`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/regression.sh` passed.
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check -- .github/workflows/pre-release-verification.yml docs/DEVELOPMENT_LOG.md .factory/mission-state.json` passed.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.

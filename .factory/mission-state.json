@@ -3,7 +3,7 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-regression-auth-quota-fix-2026-05-19",
+  "current_feature": "ci-docker-fixture-admin-user-propagation-fix-2026-05-19",
   "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
@@ -103,7 +103,8 @@
     "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
+    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -131,7 +132,8 @@
       "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-AUTH-HEADER-SEED-FIX-2026-05-19",
       "CI-DOCKER-FIXTURE-KIRO-CHANNEL-TYPE-SEED-FIX-2026-05-19",
-      "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19"
+      "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
+      "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -139,18 +141,14 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-docker-fixture-regression-auth-quota-worker",
+    "worker": "codex-ci-docker-fixture-admin-user-propagation-worker",
     "status": "completed_pending_ci_rerun",
     "files_modified": [
-      "scripts/seed-local-fixture.sh",
-      "scripts/regression.sh",
-      "middleware/distributor.go",
-      "service/pre_consume_quota.go",
-      "service/billing_session.go",
+      ".github/workflows/pre-release-verification.yml",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke regression failures. The fixture now exports a dashboard admin access token with ADMIN_USER_ID, regression admin and cookie calls send New-Api-User where required, user search parsing uses .data.items, normal/internal fixture users receive test quota while the zero-balance user remains at zero wallet quota with a valid API key, insufficient wallet quota returns HTTP 402, and direct normal-user requests for enabled experimental-only models return HTTP 403 instead of a 503 no-channel response. No real upstream keys were added.",
+    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke regression failure. The workflow already evaluated the seed output containing ADMIN_TOKEN and ADMIN_USER_ID, but only passed ADMIN_TOKEN into scripts/regression.sh. It now validates ADMIN_USER_ID and forwards it so regression admin /api/* calls include the required New-Api-User header. No business logic, unrelated code, or real upstream keys were changed.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -160,39 +158,19 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "bash -n scripts/seed-local-fixture.sh",
-        "exit_code": 0,
-        "observation": "Fixture seed script syntax check passed."
-      },
-      {
         "command": "bash -n scripts/regression.sh",
         "exit_code": 0,
         "observation": "Regression script syntax check passed."
       },
       {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 0,
-        "observation": "Fixture compose config rendered successfully."
-      },
-      {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully after regression auth/quota fix."
+        "observation": "Mission state JSON parsed successfully after admin user propagation fix."
       },
       {
-        "command": "git diff --check",
+        "command": "git diff --check -- .github/workflows/pre-release-verification.yml docs/DEVELOPMENT_LOG.md .factory/mission-state.json",
         "exit_code": 0,
-        "observation": "Whitespace check passed for the working tree diff; Git emitted existing CRLF normalization warnings only."
-      },
-      {
-        "command": "gofmt -w middleware/distributor.go service/pre_consume_quota.go service/billing_session.go",
-        "exit_code": 127,
-        "observation": "gofmt is unavailable in the current shell."
-      },
-      {
-        "command": "go test ./middleware ./service -run 'TestAUD017|TestPreConsumeQuota' -count=1",
-        "exit_code": 127,
-        "observation": "go is unavailable in the current shell."
+        "observation": "Whitespace check passed for the working tree diff."
       }
     ],
     "development_log_updated": true,
@@ -310,7 +288,8 @@
     "CI-MIGRATION-SCHEMA-PANIC": "fixed_pending_ci_rerun",
     "CI-SEEDED-FIXTURE-ADMIN-LOGIN": "fixed_pending_ci_rerun",
     "CI-FRONTEND-RISK-ACK-LINT": "fixed_pending_ci_rerun",
-    "CI-DOCKER-FIXTURE-SEED-401": "fixed_pending_ci_rerun"
+    "CI-DOCKER-FIXTURE-SEED-401": "fixed_pending_ci_rerun",
+    "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION": "fixed_pending_ci_rerun"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -392,7 +371,7 @@
     ]
   },
   "next_recommended_action": "Rerun the pre-release-verification docker-fixture-smoke job.",
-  "updated_at": "2026-05-19T02:00:00+08:00",
+  "updated_at": "2026-05-19T14:58:36+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
