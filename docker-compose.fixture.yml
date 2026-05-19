@@ -7,16 +7,17 @@ services:
     restart: unless-stopped
     ports:
       - "${FIXTURE_PORT:-3000}:3000"
-    volumes:
-      - fixture_data:/data
     environment:
       - REDIS_CONN_STRING=redis://redis:6379
+      - SQLITE_PATH=/tmp/new-api-fixture/one-api.db?_busy_timeout=30000
       - SESSION_SECRET=fixture-session-secret-change-before-real-deploy
       - CRYPTO_SECRET=fixture-crypto-secret-change-before-real-deploy
       - TZ=Asia/Shanghai
       - STORE_FULL_TEXT_ENABLED=false
       - BATCH_UPDATE_ENABLED=false
       - CHANNEL_UPSTREAM_MODEL_UPDATE_TASK_ENABLED=false
+    tmpfs:
+      - /tmp/new-api-fixture
     depends_on:
       redis:
         condition: service_started
@@ -49,9 +50,6 @@ services:
     restart: unless-stopped
     networks:
       - fixture-network
-
-volumes:
-  fixture_data:
 
 networks:
   fixture-network:

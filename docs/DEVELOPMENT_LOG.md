@@ -1211,3 +1211,20 @@ Next: security-remediation, continue with AUD-022-org-project-token-binding-enfo
 - Docker fixture runtime could not be rerun locally from this shell.
 
 **Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.
+
+---
+
+### 2026-05-19 — CI Docker Fixture Ephemeral DB Seed Fix
+
+**Worker**: codex-ci-docker-fixture-ephemeral-db-worker
+**Summary**: Fixed only the provided `pre-release-verification` failure where the fixture seed login returned 401 twice and the regression script then failed because `ADMIN_TOKEN` was empty. The Docker fixture now uses an ephemeral SQLite path on tmpfs instead of a persistent fixture data volume, so the seeded admin credentials are deterministic for each CI run. The workflow seed step also enables `pipefail` and explicitly validates that `seed-local-fixture.sh` emitted `ADMIN_TOKEN`, preventing a failed seed pipeline from continuing into `scripts/regression.sh`.
+
+**Files modified**: `docker-compose.fixture.yml`, `.github/workflows/pre-release-verification.yml`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed and shows the fixture SQLite path on `/tmp/new-api-fixture`.
+- `.factory/mission-state.json` parsed successfully.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+
+**Next recommended action**: Rerun the `pre-release-verification` workflow, specifically the `docker-fixture-smoke` job.

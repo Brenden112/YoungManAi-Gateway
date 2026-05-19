@@ -112,8 +112,10 @@ jobs:
       - name: Seed fixture and run curl smoke
         timeout-minutes: 10
         run: |
+          set -euo pipefail
           ADMIN_LINE="$(BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh | tail -n 1)"
           eval "$ADMIN_LINE"
+          : "${ADMIN_TOKEN:?seed-local-fixture.sh did not emit ADMIN_TOKEN}"
           BASE_URL=http://localhost:3000 ADMIN_TOKEN="$ADMIN_TOKEN" bash scripts/regression.sh
       - name: Fixture cleanup
         if: always()

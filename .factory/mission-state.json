@@ -3,7 +3,7 @@
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
   "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-seed-401-fix-2026-05-19",
+  "current_feature": "ci-docker-fixture-ephemeral-db-seed-fix-2026-05-19",
   "overall_status": "completed_pending_ci_rerun",
   "completed_milestones": [
     "M0",
@@ -99,7 +99,8 @@
     "PRE-RELEASE-REVIEW-CHECKLIST",
     "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
     "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19",
+    "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -123,7 +124,8 @@
       "AUD-025-api-experimental-visibility",
       "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
       "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19",
-      "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19"
+      "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19",
+      "CI-DOCKER-FIXTURE-EPHEMERAL-DB-SEED-FIX-2026-05-19"
     ],
     "remaining_critical_issues": [],
     "next_issue": "rerun_pre_release_verification_ci"
@@ -131,14 +133,15 @@
   "last_handoff": {
     "phase": "ci-pre-release-verification-fix",
     "milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-    "worker": "codex-ci-docker-fixture-seed-worker",
+    "worker": "codex-ci-docker-fixture-ephemeral-db-worker",
     "status": "completed_pending_ci_rerun",
     "files_modified": [
+      "docker-compose.fixture.yml",
       ".github/workflows/pre-release-verification.yml",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "implementation_summary": "Fixed only the provided docker-fixture-smoke seed failure where admin login returned 401 twice and ADMIN_TOKEN was missing. The pre-release verification workflow now resets the fixture compose state, including volumes, before building and starting the fixture so the seed script does not inherit an already-initialized SQLite database with unknown admin credentials. No business functionality or real upstream keys were added.",
+    "implementation_summary": "Fixed only the provided pre-release-verification docker-fixture-smoke seed failure where admin login returned 401 twice and ADMIN_TOKEN was missing. The fixture compose now uses an ephemeral SQLite database on tmpfs instead of a persistent fixture data volume so each CI run starts with deterministic seeded admin credentials. The workflow seed step now enables pipefail and validates that seed-local-fixture.sh emitted ADMIN_TOKEN before running regression. No business functionality or real upstream keys were added.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -148,19 +151,24 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "git diff --check",
+        "command": "bash -n scripts/seed-local-fixture.sh",
         "exit_code": 0,
-        "observation": "Whitespace check passed for the working tree diff."
+        "observation": "Fixture seed script syntax check passed."
+      },
+      {
+        "command": "docker compose -f docker-compose.fixture.yml config",
+        "exit_code": 0,
+        "observation": "Fixture compose config rendered successfully with tmpfs-backed SQLite path /tmp/new-api-fixture/one-api.db."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully after fixture seed 401 fix."
+        "observation": "Mission state JSON parsed successfully after fixture ephemeral DB seed fix."
       },
       {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 1,
-        "observation": "Docker is unavailable in this WSL shell, so compose config and fixture runtime could not be rerun locally."
+        "command": "git diff --check",
+        "exit_code": 0,
+        "observation": "Whitespace check passed for the working tree diff; Git emitted existing CRLF normalization warnings only."
       }
     ],
     "development_log_updated": true,
