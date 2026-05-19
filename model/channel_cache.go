@@ -103,6 +103,18 @@ func GetRandomSatisfiedChannelWithProviderPolicy(group string, model string, ret
 		return GetChannelWithProviderPolicy(group, model, retry, policy)
 	}
 
+	ch, err := getFromMemoryCache(group, model, retry, policy)
+	if ch != nil || err != nil {
+		return ch, err
+	}
+
+	// Memory cache miss — fall back to database query.
+	// This handles the case where channels were recently added and the
+	// in-memory cache has not yet been refreshed.
+	return GetChannelWithProviderPolicy(group, model, retry, policy)
+}
+
+func getFromMemoryCache(group string, model string, retry int, policy ProviderTypePolicy) (*Channel, error) {
 	channelSyncLock.RLock()
 	defer channelSyncLock.RUnlock()
 
