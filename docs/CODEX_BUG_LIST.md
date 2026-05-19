@@ -5,7 +5,7 @@
 The current canonical status after full remediation is:
 
 - fixed: `AUD-001`, `AUD-002`, `AUD-003`, `AUD-004`, `AUD-016`, `AUD-017`, `AUD-018`, `AUD-019`, `AUD-020`, `AUD-021`, `AUD-022`, `AUD-023`, `AUD-024-local-fixture`, `AUD-025-api-visibility`
-- pending_ci_verification: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, `final_go_verification_blocked`
+- closed_by_ci: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, `final_go_verification_blocked`
 - critical/high remaining: 0
 
 Pre-release hardening update 2026-05-17: the remaining three items are no longer undocumented blockers. Each has a minimum fix path, CI coverage, and waiver:
@@ -16,6 +16,15 @@ Pre-release hardening update 2026-05-17: the remaining three items are no longer
 - `final_go_verification_blocked`: `docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md`. This is a local toolchain blocker, not a confirmed code bug; the current shell has no `go` binary and `/tmp/go2510/bin/go` is absent.
 
 CI/staging verification setup 2026-05-18: the four environment blockers above are not marked passed. They are moved to `pending_ci_verification` and must be closed by `.github/workflows/pre-release-verification.yml` or staging runbook evidence.
+
+Post-CI verification closure 2026-05-19: GitHub Actions `Pre-release verification` run #13 passed on branch `main` at commit `aeb43e5`. Jobs `go-test-vet`, `local-fixture-regression`, `cross-db-migration`, `docker-fixture-smoke`, and `frontend-check` all succeeded. The four local environment blockers are now `closed_by_ci`:
+
+- `blocked_test_infra_frontend`
+- `blocked_external_dependency_cross_db_runtime`
+- `skipped_environment_docker_runtime`
+- `final_go_verification_blocked`
+
+Current release-audit counters: `critical_findings_remaining = 0`, `high_findings_remaining = 0`, `features_failed = 0`, CI verification passed, and `deployment_readiness = staging_ready`. This is not `production_ready`; recommended next action is to run staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`.
 
 Older per-issue sections below are retained as historical audit baseline where noted.
 

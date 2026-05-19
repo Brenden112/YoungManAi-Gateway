@@ -2,7 +2,7 @@
 
 Date: 2026-05-17
 
-Status: `pending_ci_verification`
+Status: `closed_by_ci`
 
 ## Blocked Reason
 
@@ -46,4 +46,10 @@ This waiver is acceptable only for environments without Bun/dependencies. Releas
 - `.github/workflows/pre-release-verification.yml` job `frontend-check`
 - `docs/STAGING_VERIFICATION_RUNBOOK.md`
 
-This waiver remains open until frontend lint, test, and build pass in CI/staging. Missing scripts or dependency failures must remain blocked and must not be marked passed.
+## CI Closure — 2026-05-19
+
+Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `frontend-check` job succeeded, closing local frontend infrastructure blocker `blocked_test_infra_frontend` as `closed_by_ci`.
+
+The original local blocker remains historical evidence of a local tool/dependency limitation: Bun and `web/default/node_modules` were unavailable in the shell where the local audit ran. CI provided the required frontend lint, test, and build evidence.
+
+Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

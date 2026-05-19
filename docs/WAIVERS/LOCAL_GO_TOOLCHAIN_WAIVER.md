@@ -2,7 +2,7 @@
 
 Date: 2026-05-18
 
-Status: `pending_ci_verification`
+Status: `closed_by_ci`
 
 blocker_id: `final_go_verification_blocked`
 
@@ -53,7 +53,7 @@ LOCAL_FIXTURE=1 bash scripts/regression.sh
 
 - If Go remains unavailable in CI/staging, fix the runner image/toolchain before production review.
 - If Go is available and tests fail, classify the failure as code, test dependency, or environment based on the failing output.
-- Keep `deployment_readiness` as `needs_manual_review` until final verification passes in CI/staging.
+- Keep production release blocked on staging manual verification even after CI passes final Go verification.
 
 ## CI / Staging Verification Path
 
@@ -61,4 +61,10 @@ LOCAL_FIXTURE=1 bash scripts/regression.sh
 - `.github/workflows/pre-release-verification.yml` job `go-test-vet`
 - `.github/workflows/pre-release-verification.yml` job `local-fixture-regression`
 
-This waiver remains open until CI/staging reruns Go test, Go vet, and local fixture regression successfully.
+## CI Closure — 2026-05-19
+
+Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `go-test-vet` and `local-fixture-regression` jobs succeeded, closing local Go toolchain blocker `final_go_verification_blocked` as `closed_by_ci`.
+
+The original local shell was still a valid environment blocker: Go was unavailable locally, so the local refresh could not run the final checks. CI provided the required Go 1.22+ runner evidence.
+
+Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

@@ -2,7 +2,7 @@
 
 Date: 2026-05-17
 
-Status: `pending_ci_verification`
+Status: `closed_by_ci`
 
 ## Blocked Reason
 
@@ -42,7 +42,7 @@ SQL_DSN='postgresql://postgres:postgres@127.0.0.1:5432/new_api_migration?sslmode
 
 ## Acceptance
 
-This waiver is acceptable only for local environments without MySQL/PostgreSQL services. Deployment readiness must remain `needs_manual_review` until CI artifacts show all three migration jobs passing.
+This waiver was acceptable only for local environments without MySQL/PostgreSQL services. Deployment readiness must remain below `production_ready` until staging manual verification is complete.
 
 ## CI / Staging Verification Path
 
@@ -50,4 +50,10 @@ This waiver is acceptable only for local environments without MySQL/PostgreSQL s
 - `.github/workflows/pre-release-verification.yml` job `cross-db-migration`
 - `docs/STAGING_VERIFICATION_RUNBOOK.md`
 
-This waiver remains open until SQLite, MySQL, and PostgreSQL migration checks pass in CI/staging.
+## CI Closure — 2026-05-19
+
+Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `cross-db-migration` job succeeded, closing local external dependency blocker `blocked_external_dependency_cross_db_runtime` as `closed_by_ci`.
+
+The original local blocker remains historical evidence of a local service limitation: disposable MySQL and PostgreSQL services were unavailable in the shell where the local audit ran. CI provided the required SQLite, MySQL, and PostgreSQL migration evidence.
+
+Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

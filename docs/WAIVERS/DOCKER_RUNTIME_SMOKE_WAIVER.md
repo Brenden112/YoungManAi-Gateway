@@ -2,7 +2,7 @@
 
 Date: 2026-05-18
 
-Status: `pending_ci_verification`
+Status: `closed_by_ci`
 
 blocker_id: `skipped_environment_docker_runtime`
 
@@ -65,8 +65,8 @@ docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes
 
 ## Failure Handling
 
-- Keep `deployment_readiness` as `needs_manual_review`.
-- Keep `skipped_environment_docker_runtime` as `pending_ci_verification` until CI/staging evidence passes.
+- Keep `deployment_readiness` out of `production_ready` until staging manual verification is complete.
+- Keep production release blocked on staging environment review even after this CI closure.
 - If CI/staging fails before dependency download completes, classify as environment/build-cache failure and add retry/cache evidence.
 - If CI/staging reaches runtime and a functional assertion fails, open a confirmed code bug with logs, failing endpoint, expected behavior, actual behavior, and fixture seed state.
 - Do not run `docker system prune -a`.
@@ -86,4 +86,10 @@ docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes
 - `.github/workflows/pre-release-verification.yml` job `docker-fixture-smoke`
 - `docs/STAGING_VERIFICATION_RUNBOOK.md`
 
-This waiver remains open until fixture build, seed, curl smoke, and fixture-scoped cleanup pass in CI/staging.
+## CI Closure — 2026-05-19
+
+Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `docker-fixture-smoke` job succeeded, closing local Docker runtime blocker `skipped_environment_docker_runtime` as `closed_by_ci`.
+
+The original local Docker/runtime blocker remains historical evidence of an environment limitation: the local build path stalled at dependency download and later Docker CLI access was unreliable. CI provided the required fixture build, seed, curl smoke, and cleanup evidence.
+
+Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

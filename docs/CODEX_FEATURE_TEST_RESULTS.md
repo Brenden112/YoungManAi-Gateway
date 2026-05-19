@@ -208,4 +208,31 @@ Accepted blocker waivers:
 - `docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md`
 - `docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md`
 
-Deployment readiness remains `needs_manual_review`.
+Historical pre-CI status: deployment readiness remained `needs_manual_review` until CI evidence was available.
+
+## Post-CI Verification Closure — 2026-05-19
+
+GitHub Actions `Pre-release verification` run #13 passed on branch `main` at commit `aeb43e5` in approximately 2m37s.
+
+| Check | CI job | Result |
+|---|---|---|
+| Go test/vet | `go-test-vet` | PASS |
+| Local fixture regression | `local-fixture-regression` | PASS |
+| Cross-DB migration | `cross-db-migration` | PASS |
+| Docker fixture smoke | `docker-fixture-smoke` | PASS |
+| Frontend lint/test/build | `frontend-check` | PASS |
+
+Updated feature/audit summary:
+
+| Metric | Count / Status |
+|---|---|
+| Features failed | 0 |
+| Critical findings remaining | 0 |
+| High findings remaining | 0 |
+| Local-environment medium blockers | `closed_by_ci` |
+| CI verification | passed |
+| Deployment readiness | `staging_ready` |
+
+Closed by CI: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, and `final_go_verification_blocked`.
+
+This is not production readiness. Recommended next action: run staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`.

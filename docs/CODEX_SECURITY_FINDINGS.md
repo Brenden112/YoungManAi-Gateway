@@ -41,13 +41,32 @@ Remaining medium items are `blocked_test_infra_frontend`, `blocked_external_depe
 
 ## Pre-Release Hardening Security Update — 2026-05-17 23:30 +08:00
 
-The three remaining medium items are marked `accepted_blocker`, not `passed`:
+Historical status before CI closure: the three remaining medium items were marked `accepted_blocker`, not `passed`:
 
 - `blocked_test_infra_frontend`: local Bun/dependency execution unavailable; CI frontend lint/test/build job added; waiver at `docs/WAIVERS/FRONTEND_TEST_INFRA_WAIVER.md`.
 - `blocked_external_dependency_cross_db_runtime`: SQLite migration smoke passed locally; MySQL/PostgreSQL service proof is CI-gated; waiver at `docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md`.
 - `skipped_environment_docker_runtime`: fake-provider fixture and seed script added; runtime smoke must pass in CI/manual Docker; waiver at `docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md`.
 
 Security release gate remains manual review. Do not set deployment readiness to `ready` until these accepted blockers have reviewed CI/manual evidence.
+
+## Post-CI Verification Closure — 2026-05-19
+
+GitHub Actions `Pre-release verification` run #13 passed on branch `main` at commit `aeb43e5` in approximately 2m37s. Jobs `go-test-vet`, `local-fixture-regression`, `cross-db-migration`, `docker-fixture-smoke`, and `frontend-check` all succeeded.
+
+Security/audit counters after CI closure:
+
+| Metric | Count / Status |
+|---|---|
+| critical_findings_remaining | 0 |
+| high_findings_remaining | 0 |
+| medium local-environment blockers | `closed_by_ci` |
+| features_failed | 0 |
+| CI verification | passed |
+| deployment_readiness | `staging_ready` |
+
+Closed by CI: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, and `final_go_verification_blocked`.
+
+This does not make the release `production_ready`. Recommended next action: run staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, then perform environment-variable review, real deployment topology review, and manual security sign-off.
 
 ## Fixed In Security Remediation
 

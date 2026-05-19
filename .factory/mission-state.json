@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_milestone": "CI-PRE-RELEASE-VERIFICATION-FIX",
-  "current_feature": "ci-docker-fixture-add-channel-cache-refresh-fix-2026-05-19",
-  "overall_status": "completed_pending_ci_rerun",
+  "current_milestone": "POST-CI-VERIFICATION-CLOSURE",
+  "current_feature": "post-ci-verification-closure-2026-05-19",
+  "overall_status": "completed",
   "completed_milestones": [
     "M0",
     "M1",
@@ -106,7 +106,8 @@
     "CI-DOCKER-FIXTURE-REGRESSION-AUTH-QUOTA-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-ADD-CHANNEL-CACHE-REFRESH-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-ADD-CHANNEL-CACHE-REFRESH-FIX-2026-05-19",
+    "POST-CI-VERIFICATION-CLOSURE-2026-05-19"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -189,7 +190,7 @@
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "Rerun the remote pre-release-verification workflow to confirm GitHub Actions docker-fixture-smoke is green."
+    "next_recommended_action": "Run staging verification and internal gray test before production."
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -385,8 +386,8 @@
       "A16.2.1"
     ]
   },
-  "next_recommended_action": "Rerun the pre-release-verification docker-fixture-smoke job.",
-  "updated_at": "2026-05-19T16:12:02+08:00",
+  "next_recommended_action": "run staging verification and internal gray test before production",
+  "updated_at": "2026-05-19T23:59:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -424,7 +425,7 @@
     "mission_state_updated": true,
     "recommended_next_action": ""
   },
-  "all_remediation_status": "completed_with_accepted_blockers",
+  "all_remediation_status": "completed",
   "fixed_issues": [
     "AUD-001",
     "AUD-002",
@@ -443,28 +444,29 @@
     "AUD-025-api-experimental-visibility",
     "CI-PRE-RELEASE-VERIFICATION-FAILURES-2026-05-19",
     "CI-PRE-RELEASE-VERIFICATION-LOG-ONLY-FIX-2026-05-19",
-    "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19"
+    "CI-DOCKER-FIXTURE-SEED-401-FIX-2026-05-19",
+    "POST-CI-VERIFICATION-CLOSURE-2026-05-19"
   ],
   "blocked_issues": [],
   "remaining_issues": [],
   "final_test_status": {
-    "ci_verify_script": "completed_with_blocked_environment_checks",
+    "ci_verify_script": "passed_in_pre_release_verification_run_13",
     "gofmt": "passed_on_modified_go_files",
-    "go_test_model": "blocked_go_binary_missing_in_current_shell",
-    "go_test_middleware": "blocked_go_binary_missing_in_current_shell",
-    "go_test_all": "fixed_for_ci_embed_missing_dist_blocked_local_go_binary_missing",
-    "go_vet_all": "blocked_go_binary_missing_in_current_shell",
+    "go_test_model": "passed_by_ci_go_test_vet",
+    "go_test_middleware": "passed_by_ci_go_test_vet",
+    "go_test_all": "passed_by_ci_go_test_vet",
+    "go_vet_all": "passed_by_ci_go_test_vet",
     "git_diff_check": "passed",
     "mission_state_json": "passed",
     "docker_compose_config": "passed",
-    "local_fixture_smoke": "fixed_for_ci_embed_missing_dist_blocked_local_go_binary_missing",
-    "frontend": "lint_errors_fixed_blocked_local_bun_missing",
+    "local_fixture_smoke": "passed_by_ci_local_fixture_regression",
+    "frontend": "passed_by_ci_frontend_check",
     "sqlite_migration_smoke": "passed",
     "fixture_compose_config": "passed",
-    "cross_db_mysql_postgres": "pending_ci_verification",
-    "docker_runtime_smoke": "passed_local_m16_fixture_regression_8_of_8_pending_ci_rerun",
+    "cross_db_mysql_postgres": "passed_by_ci_cross_db_migration",
+    "docker_runtime_smoke": "passed_by_ci_docker_fixture_smoke",
     "docker_fixture_cleanup": "passed_after_local_verification",
-    "final_go_verification": "targeted_controller_model_tests_passed_via_docker_pending_full_ci",
+    "final_go_verification": "passed_by_ci_go_test_vet",
     "pre_release_verification_ci_failure_fix": "completed_local_docker_fixture_passed_pending_ci_rerun",
     "fixture_seed_admin_token_export": "passed_script_syntax_pending_ci_runtime",
     "migration_schema_column_assertion": "fixed_pending_ci_cross_db_rerun",
@@ -472,20 +474,24 @@
     "risk_acknowledgement_lint": "fixed_pending_ci_frontend_lint_rerun",
     "docker_fixture_seed_admin_login_401": "fixed_pending_ci_docker_fixture_smoke_rerun",
     "docker_fixture_pre_start_volume_reset": "configured_pending_ci_docker_fixture_smoke_rerun",
-    "docker_fixture_add_channel_cache_refresh": "passed_local_m16_fixture_regression_8_of_8_pending_ci_rerun"
+    "docker_fixture_add_channel_cache_refresh": "passed_local_m16_fixture_regression_8_of_8",
+    "ci_verification_status": "passed",
+    "ci_workflow": "pre-release-verification",
+    "ci_run_number": 13,
+    "ci_commit": "aeb43e5"
   },
   "final_security_status": {
     "critical_findings_remaining": 0,
     "high_findings_remaining": 0,
-    "medium_findings_remaining": 4,
+    "medium_findings_remaining": 0,
     "low_findings_remaining": 0,
-    "notes": "Remaining medium items are accepted environment/test-infra/toolchain blockers with waiver docs and CI paths, not confirmed backend security defects."
+    "notes": "Critical and high findings remain closed. Prior medium environment/test-infra/toolchain blockers were closed by Pre-release verification #13 CI evidence."
   },
   "feature_matrix_status": {
     "features_retested": 37,
     "features_passed": 29,
     "features_failed": 0,
-    "features_blocked": 8,
+    "features_blocked": 0,
     "validation_assertions_checked": 70,
     "high_or_critical_findings_remaining": 0
   },
@@ -494,7 +500,7 @@
       "id": "blocked_test_infra_frontend",
       "severity": "medium",
       "waiver": "docs/WAIVERS/FRONTEND_TEST_INFRA_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local Bun and frontend dependencies are unavailable in this environment.",
       "minimal_fix_path": "Run pre-release-verification frontend-check job: bun install --frozen-lockfile; bun run lint; bun run test; bun run build."
     },
@@ -502,7 +508,7 @@
       "id": "blocked_external_dependency_cross_db_runtime",
       "severity": "medium",
       "waiver": "docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local MySQL/PostgreSQL services are unavailable; SQLite migration smoke passed locally.",
       "minimal_fix_path": "Run pre-release-verification cross-db-migration job for SQLite, MySQL, and PostgreSQL."
     },
@@ -510,7 +516,7 @@
       "id": "skipped_environment_docker_runtime",
       "severity": "medium",
       "waiver": "docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local Docker fixture build reached go mod download / dependency download and then stopped after no useful progress. This is an environment/CI blocker, not a confirmed business-code bug.",
       "minimal_fix_path": "Run pre-release-verification docker-fixture-smoke job with seeded fake-provider fixture, timeout, and fixture-scoped cleanup."
     },
@@ -518,7 +524,7 @@
       "id": "final_go_verification_blocked",
       "severity": "medium",
       "waiver": "docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "The current shell has no go binary and /tmp/go2510/bin/go is absent, so final Go verification cannot be rerun locally.",
       "minimal_fix_path": "Run pre-release-verification go-test-vet and local-fixture-regression jobs with Go 1.22+ available."
     }
@@ -528,7 +534,7 @@
       "id": "blocked_test_infra_frontend",
       "severity": "medium",
       "waiver": "docs/WAIVERS/FRONTEND_TEST_INFRA_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local Bun and frontend dependencies are unavailable in this environment.",
       "minimal_fix_path": "Run pre-release-verification frontend-check job: bun install --frozen-lockfile; bun run lint; bun run test; bun run build."
     },
@@ -536,7 +542,7 @@
       "id": "blocked_external_dependency_cross_db_runtime",
       "severity": "medium",
       "waiver": "docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local MySQL/PostgreSQL services are unavailable; SQLite migration smoke passed locally.",
       "minimal_fix_path": "Run pre-release-verification cross-db-migration job for SQLite, MySQL, and PostgreSQL."
     },
@@ -544,7 +550,7 @@
       "id": "skipped_environment_docker_runtime",
       "severity": "medium",
       "waiver": "docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "Local Docker fixture build reached go mod download / dependency download and then stopped after no useful progress. This is an environment/CI blocker, not a confirmed business-code bug.",
       "minimal_fix_path": "Run pre-release-verification docker-fixture-smoke job with seeded fake-provider fixture, timeout, and fixture-scoped cleanup."
     },
@@ -552,14 +558,14 @@
       "id": "final_go_verification_blocked",
       "severity": "medium",
       "waiver": "docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md",
-      "status": "pending_ci_verification",
+      "status": "closed_by_ci",
       "blocker": "The current shell has no go binary and /tmp/go2510/bin/go is absent, so final Go verification cannot be rerun locally.",
       "minimal_fix_path": "Run pre-release-verification go-test-vet and local-fixture-regression jobs with Go 1.22+ available."
     }
   ],
-  "final_verification_refresh_status": "completed_with_environment_blockers",
-  "ci_staging_verification_setup_status": "completed_with_blockers",
-  "ci_pre_release_verification_fix_status": "completed_with_local_toolchain_blockers",
+  "final_verification_refresh_status": "closed_by_ci",
+  "ci_staging_verification_setup_status": "completed",
+  "ci_pre_release_verification_fix_status": "passed",
   "go_toolchain_status": "missing_in_shell_available_via_docker",
   "docker_cleanup_status": "passed_after_local_verification",
   "blockers_moved_to_ci": [
@@ -568,5 +574,17 @@
     "skipped_environment_docker_runtime",
     "final_go_verification_blocked"
   ],
-  "deployment_readiness": "needs_manual_review"
+  "ci_verification_status": "passed",
+  "ci_workflow": "pre-release-verification",
+  "ci_run_number": 13,
+  "ci_commit": "aeb43e5",
+  "closed_by_ci": [
+    "blocked_test_infra_frontend",
+    "blocked_external_dependency_cross_db_runtime",
+    "skipped_environment_docker_runtime",
+    "final_go_verification_blocked"
+  ],
+  "critical_findings_remaining": 0,
+  "high_findings_remaining": 0,
+  "deployment_readiness": "staging_ready"
 }
