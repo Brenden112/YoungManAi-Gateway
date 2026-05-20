@@ -2,8 +2,8 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_milestone": "STAGING-HARDENING",
-  "current_feature": "staging-deployment-config-secret-hardening-2026-05-19",
+  "current_milestone": "REMOTE-CODEX-PLANNING",
+  "current_feature": "remote-codex-development-plan-2026-05-20",
   "overall_status": "completed_with_blockers",
   "completed_milestones": [
     "M0",
@@ -108,7 +108,8 @@
     "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS-FIX-2026-05-19",
     "CI-DOCKER-FIXTURE-ADD-CHANNEL-CACHE-REFRESH-FIX-2026-05-19",
     "POST-CI-VERIFICATION-CLOSURE-2026-05-19",
-    "STAGING-HARDENING-CONFIG-SECRETS-2026-05-19"
+    "STAGING-HARDENING-CONFIG-SECRETS-2026-05-19",
+    "REMOTE-CODEX-DEVELOPMENT-PLAN-2026-05-20"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -146,85 +147,45 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "staging-hardening",
-    "milestone": "STAGING-HARDENING",
-    "worker": "codex-staging-hardening-worker",
-    "status": "completed_with_blockers",
+    "phase": "remote-codex-planning",
+    "milestone": "REMOTE-CODEX-PLANNING",
+    "worker": "codex-planning-worker",
+    "status": "completed",
     "files_modified": [
-      "docker-compose.yml",
-      "docker-compose.fixture.yml",
-      "docker-compose.local.yml",
-      ".env.example",
-      ".gitignore",
-      "scripts/ci-verify.sh",
-      ".github/workflows/pre-release-verification.yml",
-      "docs/STAGING_VERIFICATION_REPORT.md",
-      "docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md",
-      "docs/STAGING_VERIFICATION_RUNBOOK.md",
-      "docs/CODEX_AUDIT_REPORT.md",
-      "docs/CODEX_FIX_RECOMMENDATIONS.md",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
     "files_created": [
-      ".env.staging.example",
-      "scripts/check-config-secrets.sh"
+      "docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md"
     ],
-    "implementation_summary": "Fixed/mitigated the default docker-compose example credential risk without changing business logic. Sensitive compose values now come from environment variables with local-only placeholders, staging env guidance is placeholder-only, local/fixture compose files are marked non-production, and config secret scanning is wired into local CI and pre-release verification.",
+    "implementation_summary": "Added a remote GitHub Codex development plan that sequences CI evidence closure, mission status reconciliation, isolated staging runtime verification, JSON wrapper governance, CI rule enforcement, release sign-off materials, and post-MVP feature work. No business logic was changed.",
     "blockers_closed": [],
-    "blockers_moved_to_ci": [
-      "local_go_toolchain_blocked",
-      "frontend_staging_check_blocked",
-      "docker_staging_runtime_blocked",
-      "api_staging_check_blocked"
-    ],
+    "blockers_moved_to_ci": [],
     "waiver_files_created": [],
-    "ci_files_created_or_modified": [
-      ".github/workflows/pre-release-verification.yml"
-    ],
-    "scripts_created_or_modified": [
-      "scripts/check-config-secrets.sh",
-      "scripts/ci-verify.sh"
-    ],
+    "ci_files_created_or_modified": [],
+    "scripts_created_or_modified": [],
     "runbooks_created": [],
-    "smoke_fixture_files_created_or_modified": [
-      "docker-compose.fixture.yml"
-    ],
+    "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
+      {
+        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8')); console.log('mission-state json ok')\"",
+        "exit_code": 0,
+        "observation": "Mission state JSON parsed successfully after adding the planning handoff."
+      },
+      {
+        "command": "git diff --check -- docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md docs/DEVELOPMENT_LOG.md .factory/mission-state.json",
+        "exit_code": 0,
+        "observation": "Whitespace check passed for the new plan document, development log, and mission state."
+      },
       {
         "command": "bash scripts/check-config-secrets.sh",
         "exit_code": 0,
-        "observation": "Default compose and env examples passed config secret scan."
-      },
-      {
-        "command": "bash scripts/ci-verify.sh",
-        "exit_code": 2,
-        "observation": "Config secret check and git diff check passed; local Go checks blocked because go is missing; frontend checks blocked because dependencies are missing."
-      },
-      {
-        "command": "docker compose config",
-        "exit_code": 0,
-        "observation": "Default compose config rendered successfully with local-only placeholders."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 0,
-        "observation": "Fixture compose config rendered successfully and remains fake-provider/local-fixture only."
-      },
-      {
-        "command": "git diff --check",
-        "exit_code": 0,
-        "observation": "Whitespace check passed; Git emitted existing CRLF normalization warnings."
-      },
-      {
-        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
-        "exit_code": 0,
-        "observation": "Mission state JSON parsed successfully."
+        "observation": "Config secret check passed after adding the planning document."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "run staging runtime verification in isolated environment"
+    "next_recommended_action": "execute Phase 0 from docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md: record Pre-release verification #16 for commit 73ad2ff"
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -420,8 +381,8 @@
       "A16.2.1"
     ]
   },
-  "next_recommended_action": "run staging runtime verification in isolated environment",
-  "updated_at": "2026-05-19T19:30:00+08:00",
+  "next_recommended_action": "execute Phase 0 from docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md: record Pre-release verification #16 for commit 73ad2ff",
+  "updated_at": "2026-05-20T00:00:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",

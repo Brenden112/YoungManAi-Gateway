@@ -5,6 +5,24 @@
 
 ---
 
+### 2026-05-20 — Remote Codex Development Plan
+
+**Worker**: codex-planning-worker
+**Summary**: Added a remote GitHub Codex development plan for the next project phase. The plan converts the current CI #16 success on commit `73ad2ff` into ordered remote-worker tasks: CI evidence closure, mission-status reconciliation, isolated staging runtime verification, JSON wrapper governance, CI rule enforcement, release sign-off materials, and post-MVP feature development. No business logic was changed.
+
+**Files created**: `docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md`
+
+**Files modified**: `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `.factory/mission-state.json` JSON parse passed.
+- `git diff --check` passed for the new plan document, development log, and mission-state update.
+- `bash scripts/check-config-secrets.sh` passed.
+
+**Next recommended action**: Execute Phase 0 from `docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md`: record Pre-release verification #16 for commit `73ad2ff` and reconcile current CI evidence.
+
+---
+
 ## 1. Project Status Overview
 
 | Field | Value |
