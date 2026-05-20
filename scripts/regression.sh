@@ -121,6 +121,24 @@ http_code() {
     "$@"
 }
 
+http_capture() {
+  local method="$1" path="$2" token="$3" body_file="$4"
+  shift 4
+  curl -s -o "$body_file" -w "%{http_code}" -X "$method" "$BASE_URL$path" \
+    -H "Authorization: Bearer $token" \
+    -H "Content-Type: application/json" \
+    "$@"
+}
+
+assert_json_success() {
+  local label="$1" body="$2"
+  if echo "$body" | jq -e '.success == true' >/dev/null 2>&1; then
+    return 0
+  fi
+  red "  FAIL  $label — API response was not success: $body"
+  exit 1
+}
+
 # ── preflight ─────────────────────────────────────────────────────────────────
 
 bold "=== M16 Regression Suite ==="
@@ -162,17 +180,22 @@ ZERO_USER=$(api POST /api/user/register "" -d '{"username":"regtest_zero","passw
 ZERO_USER_ID=$(api GET /api/user/search?keyword=regtest_zero "$ADMIN_TOKEN" | jq -r '.data.items[0].id // empty')
 
 if [ -n "$NORMAL_USER_ID" ]; then
-  api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$NORMAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":6000000}" > /dev/null
+  NORMAL_TOPUP_RESP="$(api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$NORMAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":6000000}")"
+  assert_json_success "setup normal user quota top-up" "$NORMAL_TOPUP_RESP"
 fi
 if [ -n "$INTERNAL_USER_ID" ]; then
-  api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$INTERNAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":100000}" > /dev/null
+  INTERNAL_TOPUP_RESP="$(api POST /api/user/manage "$ADMIN_TOKEN" -d "{\"id\":$INTERNAL_USER_ID,\"action\":\"add_quota\",\"mode\":\"add\",\"value\":100000}")"
+  assert_json_success "setup internal user quota top-up" "$INTERNAL_TOPUP_RESP"
 fi
 
 # Tokens
 NORMAL_COOKIE="$(mktemp)"
 INTERNAL_COOKIE="$(mktemp)"
 ZERO_COOKIE="$(mktemp)"
-trap 'rm -f "$NORMAL_COOKIE" "$INTERNAL_COOKIE" "$ZERO_COOKIE"' EXIT
+CHAT_BODY_FILE=""
+EXP_BODY_FILE=""
+QUOTA_BODY_FILE=""
+trap 'rm -f "$NORMAL_COOKIE" "$INTERNAL_COOKIE" "$ZERO_COOKIE" "${CHAT_BODY_FILE:-}" "${EXP_BODY_FILE:-}" "${QUOTA_BODY_FILE:-}"' EXIT
 
 NORMAL_LOGIN_ID=$(api_cookie POST /api/user/login "$NORMAL_COOKIE" -d '{"username":"regtest_normal","password":"Regtest123!"}' | jq -r '.data.id // empty')
 INTERNAL_LOGIN_ID=$(api_cookie POST /api/user/login "$INTERNAL_COOKIE" -d '{"username":"regtest_internal","password":"Regtest123!"}' | jq -r '.data.id // empty')
@@ -181,6 +204,13 @@ ZERO_LOGIN_ID=$(api_cookie POST /api/user/login "$ZERO_COOKIE" -d '{"username":"
 NORMAL_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$NORMAL_COOKIE" "$NORMAL_LOGIN_ID" -d '{"name":"regtest-normal","remain_quota":100000,"unlimited_quota":true,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
 INTERNAL_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$INTERNAL_COOKIE" "$INTERNAL_LOGIN_ID" -d '{"name":"regtest-internal","remain_quota":100000,"allow_experimental":true,"allowed_provider_types":"experimental_proxy"}' | jq -r '.data.key // empty')
 ZERO_TOKEN_KEY=$(api_cookie_user POST /api/token/ "$ZERO_COOKIE" "$ZERO_LOGIN_ID" -d '{"name":"regtest-zero","remain_quota":0,"unlimited_quota":true,"allowed_provider_types":"official_cloud"}' | jq -r '.data.key // empty')
+
+for token_name in NORMAL_TOKEN_KEY INTERNAL_TOKEN_KEY ZERO_TOKEN_KEY; do
+  if [ -z "${!token_name}" ] || [ "${!token_name}" = "null" ]; then
+    red "ERROR: failed to create fixture token $token_name"
+    exit 1
+  fi
+done
 
 echo "Normal user ID:   ${NORMAL_USER_ID:-<not found>}"
 echo "Internal user ID: ${INTERNAL_USER_ID:-<not found>}"
@@ -192,10 +222,16 @@ bold "\n--- T1: official_cloud channel accessible to normal user ---"
 # /v1/models should return at least one model for a normal user
 MODELS_RESP=$(http_code GET /v1/models "$NORMAL_TOKEN_KEY")
 assert_http "T1 normal user can list models" "200" "$MODELS_RESP"
+MODELS_BODY=$(api GET /v1/models "$NORMAL_TOKEN_KEY")
+assert_contains "T1 normal user model list contains gpt-4o-mini" "gpt-4o-mini" "$MODELS_BODY"
 
-CHAT_CODE=$(http_code POST /v1/chat/completions "$NORMAL_TOKEN_KEY" \
+CHAT_BODY_FILE="$(mktemp)"
+CHAT_CODE=$(http_capture POST /v1/chat/completions "$NORMAL_TOKEN_KEY" "$CHAT_BODY_FILE" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"fixture smoke"}]}')
 assert_http "T1 normal user can chat through official provider" "200" "$CHAT_CODE"
+if [ "$CHAT_CODE" != "200" ]; then
+  red "  T1 response body: $(cat "$CHAT_BODY_FILE")"
+fi
 
 # ── T2: experimental_proxy models hidden from normal user ────────────────────
 
@@ -211,9 +247,13 @@ bold "\n--- T3: normal user rejected on experimental_proxy channel ---"
 # Attempt to call a model that only exists on an experimental_proxy channel.
 # The gateway should return 403 at the post-selection guard.
 # We use a sentinel model name that maps only to experimental channels.
-EXP_CODE=$(http_code POST /v1/chat/completions "$NORMAL_TOKEN_KEY" \
+EXP_BODY_FILE="$(mktemp)"
+EXP_CODE=$(http_capture POST /v1/chat/completions "$NORMAL_TOKEN_KEY" "$EXP_BODY_FILE" \
   -d '{"model":"kiro-test-experimental","messages":[{"role":"user","content":"hi"}]}')
 assert_http "T3 normal user gets 403 on experimental model" "403" "$EXP_CODE"
+if [ "$EXP_CODE" != "403" ]; then
+  red "  T3 response body: $(cat "$EXP_BODY_FILE")"
+fi
 
 # ── T4: disabled experimental_proxy channel rejected ─────────────────────────
 
@@ -230,9 +270,13 @@ assert_http "T4 disabled experimental channel returns 503" "503" "$DISABLED_CODE
 # ── T5: insufficient balance rejected with 402 ───────────────────────────────
 
 bold "\n--- T5: insufficient balance rejected ---"
-QUOTA_CODE=$(http_code POST /v1/chat/completions "$ZERO_TOKEN_KEY" \
+QUOTA_BODY_FILE="$(mktemp)"
+QUOTA_CODE=$(http_capture POST /v1/chat/completions "$ZERO_TOKEN_KEY" "$QUOTA_BODY_FILE" \
   -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}')
 assert_http "T5 zero-quota user gets 402" "402" "$QUOTA_CODE"
+if [ "$QUOTA_CODE" != "402" ]; then
+  red "  T5 response body: $(cat "$QUOTA_BODY_FILE")"
+fi
 
 # ── T6: default no prompt/response storage ───────────────────────────────────
 

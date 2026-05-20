@@ -124,6 +124,11 @@ api_cookie POST /api/channel/ \
     }
   }" | jq -e '.success == true' >/dev/null
 
+# Rebuild ability rows and refresh the runtime channel cache after fixture channel
+# creation. This keeps repeated fixture runs deterministic even if the gateway was
+# already running with stale ability/cache state.
+api_cookie POST /api/channel/fix | jq -e '.success == true and (.data.fails // 0) == 0' >/dev/null
+
 ADMIN_API_TOKEN="$(api_cookie POST /api/token/ \
   -d '{"name":"fixture-admin-smoke","remain_quota":100000,"unlimited_quota":true,"allow_experimental":true,"allowed_provider_types":"official_cloud,experimental_proxy"}' \
   | jq -r '.data.key')"

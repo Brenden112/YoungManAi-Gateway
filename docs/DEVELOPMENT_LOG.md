@@ -5,6 +5,76 @@
 
 ---
 
+### 2026-05-20 — Internal Gray Fixture Regression Failure Triage
+
+**Worker**: codex-internal-gray-fixture-triage-worker
+**Status**: `failed_pending_rerun`
+**Summary**: Recorded the latest GitHub Codespaces internal gray Docker fixture attempt as failed. The fixture image built and `redis`, `fake-upstream`, and `new-api` started, but `scripts/regression.sh` failed 3 of 8 checks: T1 official chat returned HTTP 503 instead of 200, T3 normal experimental call returned HTTP 503 instead of 403, and T5 zero-quota call returned HTTP 503 instead of 402. No real upstream provider or API key was used. Production readiness remains `not_ready`.
+
+**Files created**: `docs/INTERNAL_GRAY_TEST_REPORT.md`
+
+**Files modified**: `scripts/seed-local-fixture.sh`, `scripts/regression.sh`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Remediation applied**:
+- `scripts/seed-local-fixture.sh` now calls `/api/channel/fix` after fixture channel creation to rebuild ability rows and refresh runtime channel cache state before regression traffic.
+- `scripts/regression.sh` now validates setup API success responses, checks generated fixture tokens are non-empty, asserts the normal model list contains `gpt-4o-mini`, and prints response bodies for T1, T3, and T5 failures.
+
+**Validation**:
+- `bash -n scripts/seed-local-fixture.sh scripts/regression.sh` passed.
+- `.factory/mission-state.json` JSON parse passed.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+- `bash scripts/check-config-secrets.sh` passed.
+
+**Next recommended action**: Rerun the Codespaces Docker fixture command sequence. If any HTTP 503 remains, use the newly printed response body plus container logs to isolate channel selection, fake-upstream reachability, quota pre-consume, or provider-policy handling. Do not mark production ready.
+
+---
+
+### 2026-05-20 — Internal Gray Test Plan Prepared
+
+**Worker**: codex-internal-gray-plan-worker
+**Status**: `completed`
+**Summary**: Prepared the internal gray test plan after Phase 2 Codespaces staging verification passed. The plan defines boundaries, prerequisites, staging-only account setup, required fake-provider smoke checks, provider policy checks, billing/quota checks, log privacy checks, rollback drill requirements, pass/fail criteria, and evidence capture. No business logic or runtime configuration was changed, and production readiness remains `not_ready`.
+
+**Files created**: `docs/INTERNAL_GRAY_TEST_PLAN.md`
+
+**Files modified**: `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `.factory/mission-state.json` JSON parse passed.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+- `bash scripts/check-config-secrets.sh` passed.
+
+**Next recommended action**: Execute the internal gray test plan with controlled staging secrets and fake-provider traffic first. Do not mark production ready.
+
+---
+
+### 2026-05-20 — Phase 2 Codespaces Staging Verification Closure
+
+**Worker**: codex-codespaces-staging-evidence-worker
+**Status**: `completed`
+**Summary**: Closed Phase 2 isolated staging runtime verification using GitHub Codespaces evidence. Config secret checks, Go tests, Go vet, local fixture regression, migration checks, compose config, Docker fixture runtime, fake upstream/new-api/redis startup, fixture smoke, cleanup, and mission-state JSON parse passed. No real upstream provider or API key was used. Deployment readiness is now `internal_gray_ready`; production readiness remains `not_ready`.
+
+**Files created**: `docs/CODESPACES_STAGING_EVIDENCE.md`
+
+**Files modified**: `docs/STAGING_VERIFICATION_REPORT.md`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation evidence**:
+- `bash scripts/check-config-secrets.sh` passed in Codespaces.
+- `bash scripts/ci-verify.sh` passed core checks in Codespaces: Go tests, Go vet, `LOCAL_FIXTURE=1 bash scripts/regression.sh`, and `git diff --check`.
+- `bash scripts/ci-migration-check.sh` passed in Codespaces.
+- `docker compose config` passed in Codespaces.
+- `docker compose -f docker-compose.fixture.yml config` passed in Codespaces.
+- `docker compose -f docker-compose.fixture.yml up -d --build` passed in Codespaces; `fake-upstream`, `redis`, and `new-api` containers started.
+- Docker fixture runtime smoke passed with fake-provider traffic only.
+- `docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes` cleaned up successfully.
+- `.factory/mission-state.json` JSON parse passed.
+
+**Non-blocking note**: `ci-verify.sh` still reports frontend local script checks blocked because root package scripts are missing and `web/default` dependencies are not installed in that local script context. This does not block internal gray testing because GitHub Actions Pre-release verification #16 already passed `frontend-check`.
+
+**Next recommended action**: Prepare the internal gray test plan. Do not mark production ready.
+
+---
+
 ### 2026-05-20 — Remote Codex Phase 2 Staging Runtime Verification Attempt
 
 **Worker**: codex-staging-runtime-verification-worker

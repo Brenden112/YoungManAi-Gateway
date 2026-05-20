@@ -8,13 +8,13 @@
 | Environment | Local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai |
 | Commit verified locally | `b9179a38` |
 | CI evidence reviewed | Pre-release verification #16, commit `73ad2ff`, success |
-| Status | `blocked_local_environment` |
-| Deployment readiness | `staging_ready_pending_runtime_signoff` |
+| Status | `passed` |
+| Deployment readiness | `internal_gray_ready` |
 | Production readiness | `not_ready` |
 
 This staging verification used only static inspection, local fixture scripts, compose validation, and existing fake-provider CI evidence. No real upstream provider key was used and no paid provider was called.
 
-Important evidence boundary: the latest CI evidence reviewed here is Pre-release verification #16 for commit `73ad2ff`. The local workspace HEAD for this verification attempt is `b9179a38`, which is not covered by that CI run. This report therefore does not mark production ready.
+Phase 2 closure update: isolated staging runtime verification passed in GitHub Codespaces. See `docs/CODESPACES_STAGING_EVIDENCE.md` for the Codespaces evidence record. This report does not mark production ready.
 
 ## Commands Run
 
@@ -34,6 +34,28 @@ Important evidence boundary: the latest CI evidence reviewed here is Pre-release
 | `command -v jq` | Exit 1. jq is unavailable in the current shell. |
 | `command -v npm` | Exit 0. npm exists, but frontend dependencies are not installed. |
 
+## Codespaces Verification Results
+
+| Command / Check | Result |
+|---|---|
+| `bash scripts/check-config-secrets.sh` | Passed: `Config secret check passed`. |
+| `bash scripts/ci-verify.sh` | Core verification passed: Go available, Go tests passed, Go vet passed, local fixture regression passed, git diff check passed. Summary reported `passed=7 failed=0 blocked=5`. |
+| Go toolchain | `go1.26.1 linux/amd64`. |
+| `go test ./model/... -count=1` | Passed. |
+| `go test ./middleware/... -count=1` | Passed. |
+| `go test ./... -count=1` | Passed. |
+| `go vet ./...` | Passed. |
+| `LOCAL_FIXTURE=1 bash scripts/regression.sh` | Passed. |
+| `bash scripts/ci-migration-check.sh` | Passed. |
+| `docker compose config` | Passed. |
+| `docker compose -f docker-compose.fixture.yml config` | Passed. |
+| `.factory/mission-state.json` JSON parse | Passed. |
+| `docker compose -f docker-compose.fixture.yml up -d --build` | Passed; `fake-upstream`, `redis`, and `new-api` containers started. |
+| Docker fixture runtime smoke | Passed with fake-provider fixture only. |
+| `docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes` | Cleanup passed. |
+
+Frontend local script checks remained blocked in `ci-verify.sh` because root package scripts were missing and `web/default` dependencies were not installed in that local script context. This is recorded as a non-blocking note because GitHub Actions Pre-release verification #16 already passed `frontend-check`.
+
 ## Environment And Configuration Checks
 
 | Check | Result |
@@ -50,7 +72,7 @@ Important evidence boundary: the latest CI evidence reviewed here is Pre-release
 | Fake/local fixture configuration | Passed. `scripts/fake-openai-provider.mjs`, `scripts/seed-local-fixture.sh`, and `docker-compose.fixture.yml` are present. |
 | Fixture does not depend on real provider | Passed. Fixture compose uses `fake-upstream` and local Redis/SQLite only. |
 
-No key leakage was found. Staging verification can continue only with blockers noted below because the current local runtime cannot execute Go, jq, frontend dependency checks, or Docker fixture smoke.
+No key leakage was found. Codespaces runtime verification closed the Go, Docker fixture, and API staging blockers.
 
 ## Security Verification Results
 
@@ -75,15 +97,11 @@ No key leakage was found. Staging verification can continue only with blockers n
 
 ## API Verification Results
 
-Runtime API calls against the fixture are blocked locally because Docker cannot initialize. CI #16 already passed `local-fixture-regression` and `docker-fixture-smoke`, covering `GET /v1/models`, `POST /v1/chat/completions`, official provider success through the fake upstream, normal/internal experimental access control, disabled experimental rejection, zero balance rejection, and no full prompt/response storage.
-
-Local result: `api_staging_check_blocked` due to `docker_staging_runtime_blocked`.
+Runtime API calls against the fixture passed in Codespaces using the fake-provider fixture. This closes `api_staging_check_blocked` as `closed_in_codespaces`.
 
 ## Admin Verification Results
 
-Backend route and UI source inspection confirms admin surfaces exist for channel/provider management, API keys, usage logs, user quota, and manual top-up. CI #16 passed frontend lint/test/build. Current local frontend runtime is blocked because Bun and `web/default/node_modules` are unavailable, and Docker fixture runtime cannot start.
-
-Local result: `frontend_staging_check_blocked`.
+Backend route and UI source inspection confirms admin surfaces exist for channel/provider management, API keys, usage logs, user quota, and manual top-up. CI #16 passed frontend lint/test/build. Frontend local script checks in Codespaces remain a non-blocking note because the GitHub Actions `frontend-check` job already passed.
 
 ## Logs And Privacy
 
@@ -107,12 +125,11 @@ Passed by code inspection and CI evidence. Wallet quota checks reject zero or in
 
 | Blocker | Reason | Minimal fix path |
 |---|---|---|
-| `local_go_toolchain_blocked` | `go` is not in PATH, so local Go tests and `LOCAL_FIXTURE=1` regression cannot run. | Run in CI/staging host with Go 1.22+ or restore the local Go toolchain. |
-| `frontend_staging_check_blocked` | Bun is unavailable and `web/default/node_modules` is missing. | Run `bun install --frozen-lockfile`, `bun run lint`, `bun run test`, and `bun run build` in staging/CI. |
-| `jq_staging_check_blocked` | `jq` is unavailable, so seeded shell smoke parsing cannot run locally. | Install jq on the staging host before running `scripts/seed-local-fixture.sh` and `scripts/regression.sh`. |
-| `docker_staging_runtime_blocked` | Docker CLI fails with `Failed to initialize: protocol not available`. | Run fixture smoke on a Docker-capable staging host. |
-| `api_staging_check_blocked` | API smoke depends on the Docker fixture runtime. | Re-run seeded fake-provider curl smoke once Docker is available. |
+| `local_go_toolchain_blocked` | Closed in Codespaces. | `closed_in_codespaces` |
+| `docker_staging_runtime_blocked` | Closed in Codespaces. | `closed_in_codespaces` |
+| `api_staging_check_blocked` | Closed in Codespaces. | `closed_in_codespaces` |
+| `frontend_local_script_check` | Local script checks still blocked by missing root package scripts / web dependencies, but GitHub Actions frontend-check passed. | `non_blocking_note_ci_frontend_check_passed` |
 
 ## Recommendation
 
-Do not mark production ready. The CI evidence supports pre-release verification for commit `73ad2ff`, but the local staging runtime attempt on workspace HEAD `b9179a38` is blocked by missing tools and Docker daemon initialization failure. Recommended readiness remains `staging_ready_pending_runtime_signoff`; use `.env.staging.example` only as a template, never commit real secrets, and run staging runtime verification in an isolated environment before the internal gray test.
+Do not mark production ready. Codespaces evidence supports `internal_gray_ready`; use `.env.staging.example` only as a template, never commit real secrets, and prepare the internal gray test plan. Production readiness remains `not_ready`.

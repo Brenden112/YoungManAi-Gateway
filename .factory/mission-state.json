@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_milestone": "REMOTE-CODEX-PHASE-2",
-  "current_feature": "staging-runtime-verification-2026-05-20",
-  "overall_status": "completed_with_blockers",
+  "current_milestone": "INTERNAL-GRAY",
+  "current_feature": "internal-gray-fixture-regression-triage-2026-05-20",
+  "overall_status": "internal_gray_blocked",
   "completed_milestones": [
     "M0",
     "M1",
@@ -111,11 +111,13 @@
     "STAGING-HARDENING-CONFIG-SECRETS-2026-05-19",
     "REMOTE-CODEX-DEVELOPMENT-PLAN-2026-05-20",
     "REMOTE-CODEX-PHASE-0-CI-16-VERIFICATION-CLOSURE-2026-05-20",
-    "REMOTE-CODEX-PHASE-1-MISSION-STATUS-RECONCILIATION-2026-05-20"
+    "REMOTE-CODEX-PHASE-1-MISSION-STATUS-RECONCILIATION-2026-05-20",
+    "REMOTE-CODEX-PHASE-2-CODESPACES-STAGING-PASSED-2026-05-20",
+    "INTERNAL-GRAY-TEST-PLAN-2026-05-20"
   ],
   "pending_features": [],
   "blocked_features": [
-    "REMOTE-CODEX-PHASE-2-STAGING-RUNTIME-VERIFICATION-2026-05-20"
+    "INTERNAL-GRAY-FIXTURE-REGRESSION-2026-05-20"
   ],
   "audit_fix_phase": {
     "status": "completed_with_blockers",
@@ -151,21 +153,30 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "remote-codex-phase-2",
-    "milestone": "REMOTE-CODEX-PHASE-2",
-    "worker": "codex-staging-runtime-verification-worker",
-    "status": "blocked",
+    "phase": "internal-gray-fixture-regression",
+    "milestone": "INTERNAL-GRAY",
+    "worker": "codex-internal-gray-fixture-triage-worker",
+    "status": "failed_pending_rerun",
+    "phase_2_status": "passed",
+    "codespaces_staging_status": "passed",
+    "docker_fixture_runtime_status": "failed_latest_internal_gray_codespaces_run",
+    "deployment_readiness": "internal_gray_blocked",
+    "production_readiness": "not_ready",
+    "non_blocking_notes": [
+      "frontend local script checks remain blocked in ci-verify.sh because root package scripts/web dependencies are missing, but GitHub Actions frontend-check has passed."
+    ],
     "files_modified": [
-      "docs/STAGING_VERIFICATION_REPORT.md",
+      "scripts/seed-local-fixture.sh",
+      "scripts/regression.sh",
       "docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "files_created": [],
-    "implementation_summary": "Attempted isolated staging runtime verification locally. Static config checks and compose rendering passed, but local Go, Bun, jq, and Docker daemon runtime requirements are not available. Docker CLI version/config rendering work, but daemon operations fail with protocol not available, so fixture runtime, seed, curl smoke, and cleanup are blocked. No business logic was changed and no real provider keys were used.",
-    "blocker": "Local environment cannot execute Phase 2 runtime verification: missing Go, Bun, jq, frontend dependencies, and Docker daemon operations fail with protocol not available.",
-    "why_it_blocks_the_mission": "Production readiness requires isolated staging runtime verification against the fake-provider fixture. Without Go/jq and a working Docker daemon, local seeded fixture/API/frontend runtime evidence cannot be produced.",
-    "minimal_fix_path": "Run Phase 2 on a staging host with Go 1.22+, Bun dependencies, jq, and working Docker Compose, then update staging report and mission-state with passing evidence.",
+    "files_created": [
+      "docs/INTERNAL_GRAY_TEST_REPORT.md"
+    ],
+    "implementation_summary": "Recorded the latest internal gray Docker fixture run as failed after scripts/regression.sh reported 5 passed and 3 failed checks. Hardened the fixture seed and regression scripts to rebuild abilities/cache after seeding, validate setup responses and tokens, assert model visibility, and print response bodies for failing T1/T3/T5 checks. Production readiness remains not_ready.",
+    "failure_reason": "Codespaces Docker fixture regression returned HTTP 503 for T1 official chat, T3 normal-user experimental guard, and T5 zero-quota rejection.",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
@@ -175,54 +186,44 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
+        "command": "docker compose -f docker-compose.fixture.yml up -d --build",
+        "exit_code": 0,
+        "observation": "Reported by user from GitHub Codespaces: fixture image built and redis, fake-upstream, and new-api containers started."
+      },
+      {
+        "command": "ADMIN_LINE=\"$(BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh | tail -n 1)\"",
+        "exit_code": 0,
+        "observation": "Reported by user from GitHub Codespaces: seed emitted ADMIN_TOKEN, ADMIN_USER_ID=1, and BASE_URL=http://localhost:3000."
+      },
+      {
+        "command": "BASE_URL=http://localhost:3000 ADMIN_TOKEN=\"$ADMIN_TOKEN\" ADMIN_USER_ID=\"$ADMIN_USER_ID\" bash scripts/regression.sh",
+        "exit_code": 1,
+        "observation": "Reported by user from GitHub Codespaces: 5 passed, 3 failed. T1 expected 200 got 503, T3 expected 403 got 503, T5 expected 402 got 503."
+      },
+      {
+        "command": "bash -n scripts/seed-local-fixture.sh scripts/regression.sh",
+        "exit_code": 0,
+        "observation": "Shell syntax check passed for the hardened fixture scripts."
+      },
+      {
+        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
+        "exit_code": 0,
+        "observation": "Mission state JSON parse passed."
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0,
+        "observation": "Whitespace check passed; Git emitted existing CRLF normalization warnings only."
+      },
+      {
         "command": "bash scripts/check-config-secrets.sh",
         "exit_code": 0,
         "observation": "Config secret check passed."
-      },
-      {
-        "command": "bash scripts/ci-verify.sh",
-        "exit_code": 2,
-        "observation": "Passed config secret check and git diff check; blocked because go is missing and frontend dependencies are missing."
-      },
-      {
-        "command": "docker compose config",
-        "exit_code": 0,
-        "observation": "Default compose config rendered successfully."
-      },
-      {
-        "command": "LOCAL_FIXTURE=1 bash scripts/regression.sh",
-        "exit_code": 2,
-        "observation": "Blocked because go binary is missing."
-      },
-      {
-        "command": "bash scripts/ci-migration-check.sh",
-        "exit_code": 2,
-        "observation": "Blocked because go binary is missing."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 0,
-        "observation": "Fixture compose config rendered successfully."
-      },
-      {
-        "command": "docker ps",
-        "exit_code": 1,
-        "observation": "Docker daemon operation failed with protocol not available."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 1,
-        "observation": "Fixture runtime blocked because Docker daemon operation failed with protocol not available."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes",
-        "exit_code": 1,
-        "observation": "Fixture cleanup blocked by the same Docker daemon initialization error."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "recommended_next_action": "rerun Phase 2 isolated staging runtime verification on a host with Go, Bun, jq, and working Docker daemon"
+    "next_recommended_action": "rerun Codespaces Docker fixture regression after fixture script hardening"
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -416,7 +417,7 @@
     "fail": [],
     "blocked": []
   },
-  "next_recommended_action": "rerun Phase 2 isolated staging runtime verification on a host with Go, Bun, jq, and working Docker daemon",
+  "next_recommended_action": "rerun Codespaces Docker fixture regression after fixture script hardening",
   "updated_at": "2026-05-20T00:00:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
@@ -619,48 +620,30 @@
   ],
   "critical_findings_remaining": 0,
   "high_findings_remaining": 0,
-  "deployment_readiness": "staging_ready_pending_runtime_signoff",
+  "deployment_readiness": "internal_gray_blocked",
   "production_readiness": "not_ready",
-  "staging_verification_status": "blocked_local_environment",
+  "internal_gray_test_plan_status": "prepared",
+  "internal_gray_test_execution_status": "failed_pending_rerun",
+  "staging_verification_status": "passed",
   "staging_hardening_status": "completed_with_blockers",
   "default_compose_example_credentials_risk": "fixed_mitigated",
   "staging_verified_at": "2026-05-19T18:18:46+08:00",
   "staging_commit": "b9179a38",
   "staging_blockers": [
     {
-      "id": "local_go_toolchain_blocked",
-      "severity": "medium",
-      "status": "blocked_local_environment",
-      "blocker": "go binary is not available in the current shell, so local Go tests, migration check, and LOCAL_FIXTURE regression could not run.",
-      "minimal_fix_path": "Run staging verification on a host with Go 1.22+ available or restore the local Go toolchain."
-    },
-    {
-      "id": "frontend_staging_check_blocked",
-      "severity": "medium",
-      "status": "blocked_local_environment",
-      "blocker": "Bun is unavailable and web/default/node_modules is missing, so local frontend staging verification could not run.",
-      "minimal_fix_path": "Install frontend dependencies with Bun and run lint, test, and build on the staging host."
-    },
-    {
-      "id": "jq_staging_check_blocked",
-      "severity": "medium",
-      "status": "blocked_local_environment",
-      "blocker": "jq is unavailable in the current shell, so seeded fixture shell parsing cannot run locally.",
-      "minimal_fix_path": "Install jq on the staging host before running seed-local-fixture.sh and scripts/regression.sh."
-    },
-    {
-      "id": "docker_staging_runtime_blocked",
-      "severity": "medium",
-      "status": "blocked_local_environment",
-      "blocker": "Docker daemon operations fail with 'Failed to initialize: protocol not available', so fixture runtime, seed, curl smoke, and cleanup could not run locally.",
-      "minimal_fix_path": "Run docker-compose fixture smoke on a Docker-capable staging host."
-    },
-    {
-      "id": "api_staging_check_blocked",
-      "severity": "medium",
-      "status": "blocked_by_docker_runtime",
-      "blocker": "Seeded fake-provider API smoke depends on the Docker fixture runtime.",
-      "minimal_fix_path": "After Docker is available, run seed-local-fixture.sh and scripts/regression.sh against the fixture gateway."
+      "id": "frontend_local_script_check",
+      "severity": "low",
+      "status": "non_blocking_note_ci_frontend_check_passed",
+      "blocker": "ci-verify.sh still reports frontend local script checks blocked because root package scripts are missing and web/default dependencies are missing in that local script context.",
+      "minimal_fix_path": "No blocker for internal gray test because GitHub Actions Pre-release verification #16 frontend-check passed. Install frontend dependencies before local-only frontend script checks."
     }
-  ]
+  ],
+  "phase_2_status": "passed",
+  "isolated_staging_runtime_verification_status": "passed",
+  "codespaces_staging_status": "passed",
+  "docker_fixture_runtime_status": "failed_latest_internal_gray_codespaces_run",
+  "local_go_toolchain_blocked": "closed_in_codespaces",
+  "docker_staging_runtime_blocked": "closed_in_codespaces",
+  "api_staging_check_blocked": "closed_in_codespaces",
+  "frontend_local_script_check": "non_blocking_note_ci_frontend_check_passed"
 }
