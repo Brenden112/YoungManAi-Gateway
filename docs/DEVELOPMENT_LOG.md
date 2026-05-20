@@ -5,6 +5,65 @@
 
 ---
 
+### 2026-05-20 — Remote Codex Phase 2 Staging Runtime Verification Attempt
+
+**Worker**: codex-staging-runtime-verification-worker
+**Status**: `blocked`
+**Summary**: Attempted isolated staging runtime verification locally using the fake-provider fixture path. Static secret checks and compose rendering passed, but local Go, Bun, jq, frontend dependencies, and Docker daemon runtime operations are not available. Docker CLI version/config commands work, but daemon operations fail with `Failed to initialize: protocol not available`, so fixture runtime, seed, curl smoke, and cleanup could not run locally. No business logic was changed and no real provider key was used.
+
+**Files modified**: `docs/STAGING_VERIFICATION_REPORT.md`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation / commands run**:
+- `bash scripts/check-config-secrets.sh` passed.
+- `bash scripts/ci-verify.sh` exited 2: config secret check and git diff check passed; blocked because Go and frontend dependencies are unavailable.
+- `docker compose config` passed.
+- `LOCAL_FIXTURE=1 bash scripts/regression.sh` exited 2: Go binary not found.
+- `bash scripts/ci-migration-check.sh` exited 2: Go binary not found.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `docker ps` failed with `Failed to initialize: protocol not available`.
+- `docker compose -f docker-compose.fixture.yml up -d --build` failed with `Failed to initialize: protocol not available`.
+- `docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes` failed with `Failed to initialize: protocol not available`.
+
+**Blocker**: Local environment cannot execute Phase 2 runtime verification: missing Go, Bun, jq, frontend dependencies, and Docker daemon operations fail.
+
+**Minimal fix path**: Rerun Phase 2 on a staging host with Go 1.22+, Bun dependencies, jq, and working Docker Compose, then update staging report and mission-state with passing evidence.
+
+**Next recommended action**: Rerun Phase 2 isolated staging runtime verification on a capable staging host. Do not proceed to Phase 3 until this blocker is resolved or explicitly accepted by a release owner.
+
+---
+
+### 2026-05-20 — Remote Codex Phase 1 Mission Status Reconciliation
+
+**Worker**: codex-status-reconciliation-worker
+**Summary**: Reconciled original M0-M16 feature status after current-head CI evidence closure. `features.json` now marks all 37 original feature rows `done`, `validation-contract.md` identifies mission-state plus CI/staging evidence as the canonical current status source, and historical audit/retest documents now flag older failure tables as baseline rather than current release state. No business logic was changed.
+
+**Files modified**: `features.json`, `validation-contract.md`, `docs/CODEX_AUDIT_REPORT.md`, `docs/CODEX_FEATURE_TEST_RESULTS.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `features.json` JSON parse passed.
+- `.factory/mission-state.json` JSON parse passed.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+
+**Next recommended action**: Execute Phase 2 from `docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md`: run isolated staging runtime verification.
+
+---
+
+### 2026-05-20 — Remote Codex Phase 0 CI #16 Verification Closure
+
+**Worker**: codex-ci-evidence-worker
+**Summary**: Recorded Pre-release verification #16 on current reviewed HEAD `73ad2ff` as the current trusted CI evidence. Audit and status documents now reference #16 for current-head CI closure while preserving #13 as historical evidence. Deployment readiness is `staging_ready_pending_runtime_signoff`; production readiness remains `not_ready` until isolated staging runtime verification, deployment topology review, secret-source review, and manual security sign-off are complete. No business logic was changed.
+
+**Files modified**: `docs/CI_VERIFICATION_EVIDENCE.md`, `docs/CODEX_AUDIT_REPORT.md`, `docs/CODEX_FIX_RECOMMENDATIONS.md`, `docs/CODEX_FEATURE_TEST_RESULTS.md`, `docs/CODEX_SECURITY_FINDINGS.md`, `docs/CODEX_BUG_LIST.md`, `docs/STAGING_VERIFICATION_REPORT.md`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, waiver docs, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `.factory/mission-state.json` JSON parse passed.
+- `git diff --check` passed; Git emitted existing CRLF normalization warnings only.
+- `bash scripts/check-config-secrets.sh` passed.
+
+**Next recommended action**: Execute Phase 1 from `docs/REMOTE_CODEX_DEVELOPMENT_PLAN.md`: reconcile mission status files and historical audit baselines.
+
+---
+
 ### 2026-05-20 — Remote Codex Development Plan
 
 **Worker**: codex-planning-worker

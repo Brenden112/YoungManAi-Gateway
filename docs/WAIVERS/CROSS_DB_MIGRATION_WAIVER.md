@@ -54,6 +54,8 @@ This waiver was acceptable only for local environments without MySQL/PostgreSQL 
 
 Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `cross-db-migration` job succeeded, closing local external dependency blocker `blocked_external_dependency_cross_db_runtime` as `closed_by_ci`.
 
+Current HEAD refresh 2026-05-20: Pre-release verification #16 on branch `main` at commit `73ad2ff` also passed in GitHub Actions. The `cross-db-migration` job succeeded for the current reviewed HEAD.
+
 The original local blocker remains historical evidence of a local service limitation: disposable MySQL and PostgreSQL services were unavailable in the shell where the local audit ran. CI provided the required SQLite, MySQL, and PostgreSQL migration evidence.
 
 Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

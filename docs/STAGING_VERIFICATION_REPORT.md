@@ -4,15 +4,17 @@
 
 | Field | Value |
 |---|---|
-| Verification time | 2026-05-19T18:18:46+08:00 |
+| Verification time | 2026-05-20 |
 | Environment | Local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai |
-| Commit verified locally | `5a5f136f` |
-| CI evidence reviewed | Pre-release verification #13, commit `aeb43e5`, success |
-| Status | `completed_with_blockers` |
-| Deployment readiness | `staging_config_hardened_with_blockers` |
+| Commit verified locally | `b9179a38` |
+| CI evidence reviewed | Pre-release verification #16, commit `73ad2ff`, success |
+| Status | `blocked_local_environment` |
+| Deployment readiness | `staging_ready_pending_runtime_signoff` |
 | Production readiness | `not_ready` |
 
 This staging verification used only static inspection, local fixture scripts, compose validation, and existing fake-provider CI evidence. No real upstream provider key was used and no paid provider was called.
+
+Important evidence boundary: the latest CI evidence reviewed here is Pre-release verification #16 for commit `73ad2ff`. The local workspace HEAD for this verification attempt is `b9179a38`, which is not covered by that CI run. This report therefore does not mark production ready.
 
 ## Commands Run
 
@@ -21,12 +23,15 @@ This staging verification used only static inspection, local fixture scripts, co
 | `bash scripts/check-config-secrets.sh` | Exit 0. Default compose and env examples passed static secret-pattern checks. |
 | `bash scripts/ci-verify.sh` | Exit 2. No security-check failures, but blocked because `go` is missing in PATH and `web/default/node_modules` is missing. `git diff --check` passed. |
 | `LOCAL_FIXTURE=1 bash scripts/regression.sh` | Exit 2. Blocked: Go binary not found. |
+| `bash scripts/ci-migration-check.sh` | Exit 2. Blocked: Go binary not found. |
 | `docker compose config` | Exit 0. Compose syntax valid; default compose now renders only environment-driven values and local-only placeholders. |
 | `docker compose -f docker-compose.fixture.yml config` | Exit 0. Fixture compose syntax valid and uses `fake-upstream`, Redis, SQLite tmpfs, and `STORE_FULL_TEXT_ENABLED=false`. |
 | `docker compose -f docker-compose.fixture.yml up -d --build` | Exit 1. Blocked: Docker CLI failed with `Failed to initialize: protocol not available`. |
 | `docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes` | Exit 1. Blocked by same Docker CLI initialization error. |
+| `docker ps` | Exit 1. Blocked: Docker CLI failed with `Failed to initialize: protocol not available`. |
 | `command -v go` | Exit 1. Go is unavailable in the current shell. |
 | `command -v bun` | Exit 1. Bun is unavailable in the current shell. |
+| `command -v jq` | Exit 1. jq is unavailable in the current shell. |
 | `command -v npm` | Exit 0. npm exists, but frontend dependencies are not installed. |
 
 ## Environment And Configuration Checks
@@ -45,7 +50,7 @@ This staging verification used only static inspection, local fixture scripts, co
 | Fake/local fixture configuration | Passed. `scripts/fake-openai-provider.mjs`, `scripts/seed-local-fixture.sh`, and `docker-compose.fixture.yml` are present. |
 | Fixture does not depend on real provider | Passed. Fixture compose uses `fake-upstream` and local Redis/SQLite only. |
 
-No key leakage was found. Staging verification can continue only with blockers noted below because the current local runtime cannot execute Go or Docker fixture smoke.
+No key leakage was found. Staging verification can continue only with blockers noted below because the current local runtime cannot execute Go, jq, frontend dependency checks, or Docker fixture smoke.
 
 ## Security Verification Results
 
@@ -70,13 +75,13 @@ No key leakage was found. Staging verification can continue only with blockers n
 
 ## API Verification Results
 
-Runtime API calls against the fixture are blocked locally because Docker cannot initialize. CI #13 already passed `local-fixture-regression` and `docker-fixture-smoke`, covering `GET /v1/models`, `POST /v1/chat/completions`, official provider success through the fake upstream, normal/internal experimental access control, disabled experimental rejection, zero balance rejection, and no full prompt/response storage.
+Runtime API calls against the fixture are blocked locally because Docker cannot initialize. CI #16 already passed `local-fixture-regression` and `docker-fixture-smoke`, covering `GET /v1/models`, `POST /v1/chat/completions`, official provider success through the fake upstream, normal/internal experimental access control, disabled experimental rejection, zero balance rejection, and no full prompt/response storage.
 
 Local result: `api_staging_check_blocked` due to `docker_staging_runtime_blocked`.
 
 ## Admin Verification Results
 
-Backend route and UI source inspection confirms admin surfaces exist for channel/provider management, API keys, usage logs, user quota, and manual top-up. CI #13 passed frontend lint/test/build. Current local frontend runtime is blocked because Bun and `web/default/node_modules` are unavailable, and Docker fixture runtime cannot start.
+Backend route and UI source inspection confirms admin surfaces exist for channel/provider management, API keys, usage logs, user quota, and manual top-up. CI #16 passed frontend lint/test/build. Current local frontend runtime is blocked because Bun and `web/default/node_modules` are unavailable, and Docker fixture runtime cannot start.
 
 Local result: `frontend_staging_check_blocked`.
 
@@ -104,9 +109,10 @@ Passed by code inspection and CI evidence. Wallet quota checks reject zero or in
 |---|---|---|
 | `local_go_toolchain_blocked` | `go` is not in PATH, so local Go tests and `LOCAL_FIXTURE=1` regression cannot run. | Run in CI/staging host with Go 1.22+ or restore the local Go toolchain. |
 | `frontend_staging_check_blocked` | Bun is unavailable and `web/default/node_modules` is missing. | Run `bun install --frozen-lockfile`, `bun run lint`, `bun run test`, and `bun run build` in staging/CI. |
+| `jq_staging_check_blocked` | `jq` is unavailable, so seeded shell smoke parsing cannot run locally. | Install jq on the staging host before running `scripts/seed-local-fixture.sh` and `scripts/regression.sh`. |
 | `docker_staging_runtime_blocked` | Docker CLI fails with `Failed to initialize: protocol not available`. | Run fixture smoke on a Docker-capable staging host. |
 | `api_staging_check_blocked` | API smoke depends on the Docker fixture runtime. | Re-run seeded fake-provider curl smoke once Docker is available. |
 
 ## Recommendation
 
-Do not mark production ready. The code and CI evidence support staging configuration hardening, but this local staging run completed with environment blockers. Recommended readiness is `staging_config_hardened_with_blockers`; use `.env.staging.example` only as a template, never commit real secrets, and run staging runtime verification in an isolated environment before the internal gray test.
+Do not mark production ready. The CI evidence supports pre-release verification for commit `73ad2ff`, but the local staging runtime attempt on workspace HEAD `b9179a38` is blocked by missing tools and Docker daemon initialization failure. Recommended readiness remains `staging_ready_pending_runtime_signoff`; use `.env.staging.example` only as a template, never commit real secrets, and run staging runtime verification in an isolated environment before the internal gray test.

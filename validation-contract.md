@@ -3,6 +3,17 @@
 Every feature in features.json must satisfy the assertions listed here before it can be marked `done`.
 Assertions are grouped by feature ID. Each assertion has a type: `unit`, `integration`, `curl`, or `db`.
 
+## Current Status Note
+
+This contract is the original M0-M16 validation baseline. The implementation has since gone through remediation, fixture hardening, and current-head CI verification. As of 2026-05-20, Pre-release verification #16 passed on commit `73ad2ff`, and the canonical current state is tracked in:
+
+- `.factory/mission-state.json`
+- `docs/CI_VERIFICATION_EVIDENCE.md`
+- `docs/CODEX_FEATURE_TEST_RESULTS.md`
+- `docs/DEVELOPMENT_LOG.md`
+
+The assertions below remain useful as acceptance criteria and historical traceability, but current release readiness is determined by mission-state plus CI/staging evidence. Production readiness remains `not_ready` until isolated staging runtime verification and manual release sign-off are complete.
+
 ---
 
 ## M1 — Provider Type & Field Migration

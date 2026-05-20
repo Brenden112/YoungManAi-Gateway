@@ -4,6 +4,8 @@
 
 This audit executed the approved audit plan against M0-M16. It used local static inspection and local commands only. No real upstream provider was called. No paid provider key was used.
 
+Current-status note 2026-05-20: older failure and blocker sections in this report are retained as historical audit baseline. Current release/audit status is determined by `.factory/mission-state.json`, `docs/CI_VERIFICATION_EVIDENCE.md`, `docs/CODEX_FEATURE_TEST_RESULTS.md`, and the latest development-log entries. Pre-release verification #16 passed on current reviewed HEAD `73ad2ff`; production readiness remains `not_ready` until isolated staging runtime verification and manual sign-off are complete.
+
 Fix phase note: `AUD-001`, `AUD-002`, `AUD-003`, `AUD-004`, critical `AUD-016`, critical `AUD-017`, high `AUD-018`, high `AUD-019`, and high `AUD-021` were fixed on 2026-05-17. The M16 regression test compile errors were also fixed on 2026-05-17. The original audit findings remain the baseline for the remaining confirmed issues.
 
 ## Overall Result
@@ -177,3 +179,19 @@ Closure summary:
 - `deployment_readiness = staging_config_hardened_with_blockers`
 
 This does not make the release `production_ready`. Recommended next action: run staging runtime verification in an isolated environment, then complete deployment topology review, secret-source review, and manual security sign-off.
+
+## Current HEAD CI Evidence Closure — 2026-05-20
+
+Status: `completed`.
+
+GitHub Actions workflow `Pre-release verification` run #16 passed on branch `main` at commit `73ad2ff`. Passed jobs: `config-secret-check`, `go-test-vet`, `local-fixture-regression`, `cross-db-migration`, `docker-fixture-smoke`, and `frontend-check`.
+
+Current closure summary:
+
+- `critical_findings_remaining = 0`
+- `high_findings_remaining = 0`
+- `features_failed = 0`
+- CI verification passed for the current reviewed HEAD.
+- `deployment_readiness = staging_ready_pending_runtime_signoff`
+
+This does not make the release `production_ready`. Recommended next action: run isolated staging runtime verification, then complete deployment topology review, secret-source review, and manual security sign-off.

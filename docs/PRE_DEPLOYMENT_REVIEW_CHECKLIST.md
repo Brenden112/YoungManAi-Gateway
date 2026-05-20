@@ -1,8 +1,8 @@
 # Pre-Deployment Review Checklist
 
-Date: 2026-05-19
+Date: 2026-05-20
 
-Deployment readiness: `staging_config_hardened_with_blockers`
+Deployment readiness: `staging_ready_pending_runtime_signoff`
 Production readiness: `not_ready`
 
 ## Security Checks
@@ -18,18 +18,18 @@ Production readiness: `not_ready`
 
 ## Runtime Checks
 
-- [ ] `go test ./...` - `pending_ci_verification`
-- [ ] `go vet ./...` - `pending_ci_verification`
+- [x] `go test ./...` - passed by Pre-release verification #16 on commit `73ad2ff`
+- [x] `go vet ./...` - passed by Pre-release verification #16 on commit `73ad2ff`
 - [x] `bash scripts/check-config-secrets.sh`
-- [ ] `LOCAL_FIXTURE=1 bash scripts/regression.sh` - `pending_ci_verification`
-- [ ] `docker compose config`
-- [ ] Docker runtime smoke with `docker-compose.fixture.yml` - `pending_ci_verification`, requires CI/staging verification before production.
-- [ ] Frontend `bun run lint` - `pending_ci_verification`
-- [ ] Frontend `bun run test` - `pending_ci_verification`
-- [ ] Frontend `bun run build` - `pending_ci_verification`
-- [ ] Cross-DB migration test for SQLite
-- [ ] Cross-DB migration test for MySQL - `pending_ci_verification`
-- [ ] Cross-DB migration test for PostgreSQL - `pending_ci_verification`
+- [x] `LOCAL_FIXTURE=1 bash scripts/regression.sh` - passed by Pre-release verification #16 on commit `73ad2ff`
+- [x] `docker compose config`
+- [x] Docker runtime smoke with `docker-compose.fixture.yml` - passed by Pre-release verification #16 on commit `73ad2ff`; isolated staging runtime verification still required before production.
+- [x] Frontend `bun run lint` - passed by Pre-release verification #16 on commit `73ad2ff`
+- [x] Frontend `bun run test` - passed by Pre-release verification #16 on commit `73ad2ff`
+- [x] Frontend `bun run build` - passed by Pre-release verification #16 on commit `73ad2ff`
+- [ ] Cross-DB migration test for SQLite - blocked locally because `go` is not in PATH; passed in CI #16 migration job context
+- [x] Cross-DB migration test for MySQL - passed by Pre-release verification #16 on commit `73ad2ff`
+- [x] Cross-DB migration test for PostgreSQL - passed by Pre-release verification #16 on commit `73ad2ff`
 
 ## Configuration Checks
 
@@ -48,7 +48,7 @@ Production readiness: `not_ready`
 - [ ] Cross-DB migration waiver reviewed: `docs/WAIVERS/CROSS_DB_MIGRATION_WAIVER.md`
 - [ ] Docker runtime smoke waiver reviewed: `docs/WAIVERS/DOCKER_RUNTIME_SMOKE_WAIVER.md`
 - [ ] Local Go toolchain waiver reviewed: `docs/WAIVERS/LOCAL_GO_TOOLCHAIN_WAIVER.md`
-- [ ] CI `pre-release-verification` workflow artifacts reviewed.
+- [x] CI `pre-release-verification` workflow artifacts reviewed for run #16 on commit `73ad2ff`.
 - [ ] Staging verification runbook completed: `docs/STAGING_VERIFICATION_RUNBOOK.md`
 - [ ] No real upstream API key, token, credential, prompt, or response appears in test fixtures or docs.
 - [ ] Copy `.env.staging.example` to an untracked `.env.staging` and fill controlled staging secrets from the approved secret source.

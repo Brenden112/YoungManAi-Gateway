@@ -50,6 +50,8 @@ This waiver is acceptable only for environments without Bun/dependencies. Releas
 
 Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `frontend-check` job succeeded, closing local frontend infrastructure blocker `blocked_test_infra_frontend` as `closed_by_ci`.
 
+Current HEAD refresh 2026-05-20: Pre-release verification #16 on branch `main` at commit `73ad2ff` also passed in GitHub Actions. The `frontend-check` job succeeded for the current reviewed HEAD.
+
 The original local blocker remains historical evidence of a local tool/dependency limitation: Bun and `web/default/node_modules` were unavailable in the shell where the local audit ran. CI provided the required frontend lint, test, and build evidence.
 
 Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

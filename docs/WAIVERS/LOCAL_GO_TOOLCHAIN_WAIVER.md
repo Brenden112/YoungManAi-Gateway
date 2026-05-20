@@ -65,6 +65,8 @@ LOCAL_FIXTURE=1 bash scripts/regression.sh
 
 Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `go-test-vet` and `local-fixture-regression` jobs succeeded, closing local Go toolchain blocker `final_go_verification_blocked` as `closed_by_ci`.
 
+Current HEAD refresh 2026-05-20: Pre-release verification #16 on branch `main` at commit `73ad2ff` also passed in GitHub Actions. The `go-test-vet` and `local-fixture-regression` jobs succeeded for the current reviewed HEAD.
+
 The original local shell was still a valid environment blocker: Go was unavailable locally, so the local refresh could not run the final checks. CI provided the required Go 1.22+ runner evidence.
 
 Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.

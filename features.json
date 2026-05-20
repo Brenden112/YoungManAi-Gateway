@@ -77,7 +77,7 @@
     ],
     "done_definition": "Channel struct has all 5 new fields; go build passes",
     "risk_notes": "Adding nullable columns is safe; do not add NOT NULL without defaults",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F1.2",
@@ -111,7 +111,7 @@
     ],
     "done_definition": "AutoMigrate passes on all three DBs; backfill complete",
     "risk_notes": "UPDATE backfill must use WHERE to avoid touching rows already set",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F2.1",
@@ -149,7 +149,7 @@
     ],
     "done_definition": "ProviderAccount table exists; key stored encrypted; CRUD works",
     "risk_notes": "Never log decrypted key; ensure CRYPTO_SECRET env var is set",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F2.2",
@@ -183,7 +183,7 @@
     ],
     "done_definition": "channels table has provider_account_id nullable column; no regression",
     "risk_notes": "No FK constraint to avoid SQLite limitations",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F3.1",
@@ -216,7 +216,7 @@
     ],
     "done_definition": "GET /v1/models returns 200; 401 for bad token",
     "risk_notes": "Requires running server or test harness with DB",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F3.2",
@@ -249,7 +249,7 @@
     ],
     "done_definition": "chat/completions returns 200 with usage; all existing tests pass",
     "risk_notes": "May need mock upstream or real API key for integration test",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F4.1",
@@ -284,7 +284,7 @@
     ],
     "done_definition": "Known channel types auto-get correct provider_type on create",
     "risk_notes": "BeforeCreate hook must not override explicitly set provider_type",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F4.2",
@@ -318,7 +318,7 @@
     ],
     "done_definition": "Channel CRUD API accepts and returns provider_type",
     "risk_notes": "Validate provider_type enum to prevent invalid values",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F5.1",
@@ -352,7 +352,7 @@
     ],
     "done_definition": "experimental_proxy excluded from default channel pool",
     "risk_notes": "Must not break existing channel affinity / weight logic",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F5.2",
@@ -382,7 +382,7 @@
     ],
     "done_definition": "Quota calculation works for all four provider_type values",
     "risk_notes": "Low risk — mostly read-only verification",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F6.1",
@@ -415,7 +415,7 @@
     ],
     "done_definition": "ChannelTypeKiroGateway defined; name and base URL registered",
     "risk_notes": "Value 58 must not conflict; ChannelTypeDummy must remain last",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F6.2",
@@ -451,7 +451,7 @@
     ],
     "done_definition": "KiroGatewayAdaptor compiles and satisfies Adaptor interface",
     "risk_notes": "Skeleton only — actual upstream integration is out of scope for M6",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F6.3",
@@ -481,7 +481,7 @@
     ],
     "done_definition": "GetAdaptor(58) returns non-nil; go build passes",
     "risk_notes": "Low risk — additive change only",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F7.1",
@@ -514,7 +514,7 @@
     ],
     "done_definition": "IsInternalUser returns correct result for internal and default groups",
     "risk_notes": "Group name 'internal' must be documented; admin must set it manually",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F7.2",
@@ -550,7 +550,7 @@
     ],
     "done_definition": "Access control enforced in Distribute; tests pass",
     "risk_notes": "Must not affect non-experimental_proxy channels; error message must not leak channel details",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F7.3",
@@ -581,7 +581,7 @@
     ],
     "done_definition": "experimental_proxy channels created with status=disabled by default",
     "risk_notes": "BeforeCreate hook must only apply to experimental_proxy type",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F8.1",
@@ -615,7 +615,7 @@
     ],
     "done_definition": "Retry loop never falls back to experimental_proxy; returns 503 when all official channels fail",
     "risk_notes": "Must not break existing retry logic for non-experimental channels",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F8.2",
@@ -649,7 +649,7 @@
     ],
     "done_definition": "One-click disable works; cache invalidated; requests blocked immediately",
     "risk_notes": "Cache TTL must be short or invalidated on write",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F9.1",
@@ -684,7 +684,7 @@
     ],
     "done_definition": "organizations table created; no existing functionality broken",
     "risk_notes": "Stub only — no business logic; no FK constraints yet",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F9.2",
@@ -719,7 +719,7 @@
     ],
     "done_definition": "projects table created; no existing functionality broken",
     "risk_notes": "No FK constraint to maintain SQLite compatibility",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F10.1",
@@ -753,7 +753,7 @@
     ],
     "done_definition": "tokens table has org_id and project_id nullable columns",
     "risk_notes": "Must not break existing token authentication flow",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F10.2",
@@ -785,7 +785,7 @@
     ],
     "done_definition": "Unit test confirms key is hashed in DB",
     "risk_notes": "Read-only verification; if plaintext found, escalate immediately",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F11.1",
@@ -821,7 +821,7 @@
     ],
     "done_definition": "logs table has provider_type; populated on each consume log",
     "risk_notes": "Additive column; no existing log rows broken",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F11.2",
@@ -856,7 +856,7 @@
     ],
     "done_definition": "Privacy policy enforced; token counts always present; text omitted by default",
     "risk_notes": "Default must be false; never change default to true without explicit user consent",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F12.1",
@@ -889,7 +889,7 @@
     ],
     "done_definition": "UsedQuota incremented correctly on both user and token after each request",
     "risk_notes": "Race condition risk — ensure atomic DB update",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F12.2",
@@ -920,7 +920,7 @@
     ],
     "done_definition": "Billing session settle test passes with correct quota values",
     "risk_notes": "Use mock upstream to avoid real API calls in tests",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F13.1",
@@ -954,7 +954,7 @@
     ],
     "done_definition": "Zero-quota token blocked with 402; test passes",
     "risk_notes": "Must not block unlimited_quota=true tokens",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F13.2",
@@ -990,7 +990,7 @@
     ],
     "done_definition": "Admin top-up works; quota updated; log written",
     "risk_notes": "Requires admin role check; must be atomic DB operation",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F14.1",
@@ -1024,7 +1024,7 @@
     ],
     "done_definition": "Channel list filter by provider_type works; access control enforced",
     "risk_notes": "Non-admin must never see experimental_proxy channels",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F14.2",
@@ -1057,7 +1057,7 @@
     ],
     "done_definition": "experimental_proxy hidden from non-admin channel list",
     "risk_notes": "Must apply to all channel list endpoints, not just one",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F15.1",
@@ -1090,7 +1090,7 @@
     ],
     "done_definition": "Token list returns masked keys; delete soft-deletes",
     "risk_notes": "Never return full key after creation; mask in all list responses",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F15.2",
@@ -1123,7 +1123,7 @@
     ],
     "done_definition": "usage_log API returns privacy-safe data with correct filters",
     "risk_notes": "Admin-only endpoint; ensure role check present",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F15.3",
@@ -1154,7 +1154,7 @@
     ],
     "done_definition": "Balance visible and updated correctly via admin API",
     "risk_notes": "Admin-only; user must not be able to top-up themselves",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F16.1",
@@ -1188,7 +1188,7 @@
     ],
     "done_definition": "Docker compose starts successfully; health check passes",
     "risk_notes": "WSL2 path issues possible; test on Linux path",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F16.2",
@@ -1218,7 +1218,7 @@
     ],
     "done_definition": "Smoke test script passes all 4 scenarios",
     "risk_notes": "Requires running server and pre-seeded test data",
-    "status": "pending"
+    "status": "done"
   },
   {
     "id": "F16.3",
@@ -1247,6 +1247,6 @@
     ],
     "done_definition": "All tests pass; no vet warnings",
     "risk_notes": "Some tests may require DB or env vars; document requirements",
-    "status": "pending"
+    "status": "done"
   }
 ]

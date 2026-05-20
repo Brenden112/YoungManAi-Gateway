@@ -4,6 +4,8 @@ Generated: 2026-05-17 14:27 +08:00
 
 Scope: M0-M16 feature-test-matrix retest based on `features.json`, `validation-contract.md`, `docs/DEVELOPMENT_LOG.md`, and `.factory/mission-state.json`. The original matrix made no business-code changes and used no real upstream provider key.
 
+Current-status note 2026-05-20: older pass/fail/blocked tables below are retained as historical retest baseline. Current HEAD CI evidence is Pre-release verification #16 on commit `73ad2ff`, which passed all configured jobs. `features.json` has been reconciled to `done` for all 37 original feature rows; production readiness remains `not_ready` until isolated staging runtime verification and manual sign-off are complete.
+
 Security remediation update 2026-05-17: `AUD-016` fixed `F10.2`, `AUD-017` fixed disabled experimental routing, `AUD-018` fixed ProviderAccount active credentials, `AUD-019` fixed log privacy, and `AUD-021` fixed provider-type policy enforcement.
 
 ## Baseline Commands
@@ -236,3 +238,28 @@ Updated feature/audit summary:
 Closed by CI: `blocked_test_infra_frontend`, `blocked_external_dependency_cross_db_runtime`, `skipped_environment_docker_runtime`, and `final_go_verification_blocked`.
 
 This is not production readiness. Recommended next action: run staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`.
+
+## Current HEAD CI Evidence Closure — 2026-05-20
+
+GitHub Actions `Pre-release verification` run #16 passed on branch `main` at commit `73ad2ff`.
+
+| Check | CI job | Result |
+|---|---|---|
+| Config secret scan | `config-secret-check` | PASS |
+| Go test/vet | `go-test-vet` | PASS |
+| Local fixture regression | `local-fixture-regression` | PASS |
+| Cross-DB migration | `cross-db-migration` | PASS |
+| Docker fixture smoke | `docker-fixture-smoke` | PASS |
+| Frontend lint/test/build | `frontend-check` | PASS |
+
+Updated current-head summary:
+
+| Metric | Count / Status |
+|---|---|
+| Features failed | 0 |
+| Critical findings remaining | 0 |
+| High findings remaining | 0 |
+| CI verification | passed |
+| Deployment readiness | `staging_ready_pending_runtime_signoff` |
+
+This is not production readiness. Recommended next action: run isolated staging runtime verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`.

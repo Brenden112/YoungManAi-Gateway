@@ -90,6 +90,8 @@ docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes
 
 Pre-release verification #13 on branch `main` at commit `aeb43e5` passed in GitHub Actions. The `docker-fixture-smoke` job succeeded, closing local Docker runtime blocker `skipped_environment_docker_runtime` as `closed_by_ci`.
 
+Current HEAD refresh 2026-05-20: Pre-release verification #16 on branch `main` at commit `73ad2ff` also passed in GitHub Actions. The `docker-fixture-smoke` job succeeded for the current reviewed HEAD.
+
 The original local Docker/runtime blocker remains historical evidence of an environment limitation: the local build path stalled at dependency download and later Docker CLI access was unreliable. CI provided the required fixture build, seed, curl smoke, and cleanup evidence.
 
 Production readiness is not granted by this waiver closure. Keep a production preflight requirement for staging manual verification using `docs/STAGING_VERIFICATION_RUNBOOK.md`, environment-variable review, real deployment topology review, and manual security sign-off.
