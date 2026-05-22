@@ -1,0 +1,42 @@
+# Internal Gray Issues
+
+Date: 2026-05-22
+Phase: `internal-gray-test-execution`
+Environment: local workspace `/mnt/d/Projects/new-api`
+Test commit: `c961125c`
+
+## Summary
+
+No critical or high product issue was found in this Phase 4 local execution. The run is `completed_with_notes` because local environment blockers prevented a complete fresh internal gray runtime execution.
+
+| Severity | Count |
+|---|---:|
+| Critical | 0 |
+| High | 0 |
+| Medium | 4 |
+| Low | 1 |
+
+## Open Issues
+
+| ID | Severity | Status | Finding | Evidence | Recommended next step |
+|---|---|---|---|---|---|
+| IG-2026-05-22-001 | Medium | Open | Local Go toolchain is unavailable, blocking `ci-verify.sh` Go checks and `LOCAL_FIXTURE=1 bash scripts/regression.sh`. | `command -v go` exited 1; regression exited 2 with `Go binary not found`. | Rerun in Codespaces or staging host with Go available. |
+| IG-2026-05-22-002 | Medium | Open | Local `jq` is unavailable, blocking fixture seed. | `command -v jq` exited 1; `scripts/seed-local-fixture.sh` exited 1 with `missing required command: jq`. | Install `jq` in the internal gray executor or run in Codespaces. |
+| IG-2026-05-22-003 | Medium | Open | Docker daemon operations are unavailable in this local environment. | `docker ps`, fixture `up`, and fixture `down` returned `Failed to initialize: protocol not available`. | Rerun Docker fixture runtime on Docker-capable staging host or Codespaces. |
+| IG-2026-05-22-004 | Medium | Open | Fresh curl smoke and runtime admin/log checks could not execute because fixture startup was blocked. | `curl http://localhost:3000/api/status` exited 7 because no server was running. | Rerun after fixture startup succeeds. |
+| IG-2026-05-22-005 | Low | Open | Frontend local script checks remain a non-blocking local environment note. | `ci-verify.sh` recorded frontend dependencies missing while GitHub Actions `frontend-check` evidence is passed. | Keep CI frontend-check evidence current; install frontend dependencies only if local frontend validation is required. |
+
+## Stop Criteria Review
+
+None of the documented stop criteria were observed:
+
+- No API key leakage observed.
+- No provider credential leakage observed.
+- No bearer token leakage observed.
+- No real prompt or response was stored in this report.
+- No normal-user `experimental_proxy` access was observed.
+- No zero-balance upstream call was observed.
+- No billing corruption was observed.
+- No admin permission bypass was observed.
+
+The absence of observed stop criteria is not a full pass for runtime behavior because the local runtime fixture was blocked.

@@ -5,6 +5,30 @@
 
 ---
 
+### 2026-05-22 — Phase 4 Internal Gray Test Execution
+
+**Worker**: codex-internal-gray-test-execution-worker
+**Status**: `completed_with_notes`
+**Summary**: Executed the Phase 4 internal gray checklist as far as the local environment allowed. Config secret scan and fixture compose config passed. Fresh local Go checks, local fixture regression, Docker fixture runtime, fixture seed, curl smoke, API SDK/stream checks, and several runtime admin/log checks were blocked by missing Go, missing `jq`, and Docker daemon operations failing with `Failed to initialize: protocol not available`. No real upstream provider key was used, no paid provider was called, no real prompt/response/credential was written to evidence, and no business logic was modified. No critical or high product issue was found. Deployment readiness is `internal_gray_passed_with_notes`; production readiness remains `not_ready`.
+
+**Files created**: `docs/INTERNAL_GRAY_TEST_REPORT.md`, `docs/INTERNAL_GRAY_ISSUES.md`, `docs/INTERNAL_GRAY_SIGNOFF.md`
+
+**Files modified**: `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash scripts/check-config-secrets.sh` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `bash scripts/ci-verify.sh` exited 2 with `passed=2 failed=0 blocked=7`.
+- `LOCAL_FIXTURE=1 bash scripts/regression.sh` exited 2 because Go was not found.
+- `docker compose -f docker-compose.fixture.yml up -d --build` was blocked by Docker daemon initialization failure.
+- `BASE_URL=http://localhost:3000 bash scripts/seed-local-fixture.sh` was blocked because `jq` is missing.
+- `git diff --check` passed.
+- `.factory/mission-state.json` JSON parse passed.
+
+**Next recommended action**: rerun blocked internal gray runtime checks in a Docker-capable environment with Go and `jq`.
+
+---
+
 ### 2026-05-22 — Phase 3 Internal Gray Test Planning
 
 **Worker**: codex-internal-gray-test-planning-worker
