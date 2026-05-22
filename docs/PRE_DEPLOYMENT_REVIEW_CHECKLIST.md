@@ -1,11 +1,11 @@
 # Pre-Deployment Review Checklist
 
-Date: 2026-05-20
+Date: 2026-05-22
 
-Deployment readiness: `internal_gray_blocked`
+Deployment readiness: `internal_gray_ready`
 Production readiness: `not_ready`
 
-Current next step: rerun the Docker fixture regression with the hardened fixture scripts and record the result in `docs/INTERNAL_GRAY_TEST_REPORT.md`. This checklist does not mark production ready.
+Current next step: prepare internal gray test plan. This checklist does not mark production ready.
 
 ## Security Checks
 
@@ -25,7 +25,7 @@ Current next step: rerun the Docker fixture regression with the hardened fixture
 - [x] `bash scripts/check-config-secrets.sh`
 - [x] `LOCAL_FIXTURE=1 bash scripts/regression.sh` - passed by Pre-release verification #16 on commit `73ad2ff`
 - [x] `docker compose config`
-- [ ] Docker runtime smoke with `docker-compose.fixture.yml` - latest internal gray Codespaces run failed 3 regression checks with HTTP 503; see `docs/INTERNAL_GRAY_TEST_REPORT.md`.
+- [x] Docker runtime smoke with `docker-compose.fixture.yml` - passed in GitHub Codespaces using fake-provider fixture traffic only.
 - [x] Frontend `bun run lint` - passed by Pre-release verification #16 on commit `73ad2ff`
 - [x] Frontend `bun run test` - passed by Pre-release verification #16 on commit `73ad2ff`
 - [x] Frontend `bun run build` - passed by Pre-release verification #16 on commit `73ad2ff`
@@ -53,7 +53,7 @@ Current next step: rerun the Docker fixture regression with the hardened fixture
 - [x] CI `pre-release-verification` workflow artifacts reviewed for run #16 on commit `73ad2ff`.
 - [x] Staging verification runbook completed in Codespaces; evidence recorded in `docs/CODESPACES_STAGING_EVIDENCE.md`.
 - [x] Internal gray test plan prepared in `docs/INTERNAL_GRAY_TEST_PLAN.md`.
-- [ ] Internal gray Docker fixture regression passed. State: `failed_pending_rerun_after_fixture_script_hardening`.
+- [x] Internal gray Docker fixture regression passed. State: `passed_in_codespaces`.
 - [x] No real upstream API key, token, credential, prompt, or response appears in test fixtures or docs. State: `passed_by_config_secret_check`.
 - [ ] Copy `.env.staging.example` to an untracked `.env.staging` and fill controlled staging secrets from the approved secret source. State: `manual_required_for_internal_gray`.
 - [ ] Confirm `.env`, `.env.*`, `secrets/`, `*.key`, `*.pem`, `*.p12`, and `*.pfx` are not committed. State: `manual_required_for_internal_gray`.

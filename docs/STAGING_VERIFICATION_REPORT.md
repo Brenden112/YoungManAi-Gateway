@@ -4,17 +4,21 @@
 
 | Field | Value |
 |---|---|
-| Verification time | 2026-05-20 |
-| Environment | Local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai |
+| Verification time | 2026-05-22 |
+| Environment | GitHub Codespaces isolated staging runtime; local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai |
 | Commit verified locally | `b9179a38` |
 | CI evidence reviewed | Pre-release verification #16, commit `73ad2ff`, success |
 | Status | `passed` |
+| Phase 2 status | `passed` |
+| Isolated staging runtime verification status | `passed` |
+| Codespaces staging status | `passed` |
+| Docker fixture runtime status | `passed_in_codespaces` |
 | Deployment readiness | `internal_gray_ready` |
 | Production readiness | `not_ready` |
 
 This staging verification used only static inspection, local fixture scripts, compose validation, and existing fake-provider CI evidence. No real upstream provider key was used and no paid provider was called.
 
-Phase 2 closure update: isolated staging runtime verification passed in GitHub Codespaces. See `docs/CODESPACES_STAGING_EVIDENCE.md` for the Codespaces evidence record. This report does not mark production ready.
+Phase 2 closure update: isolated staging runtime verification passed in GitHub Codespaces. See `docs/CODESPACES_STAGING_EVIDENCE.md` for the Codespaces evidence record. This report does not mark production ready. The next recommended action is to prepare the internal gray test plan.
 
 ## Commands Run
 

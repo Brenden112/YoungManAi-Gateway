@@ -5,6 +5,28 @@
 
 ---
 
+### 2026-05-22 — Phase 2 Isolated Codespaces Runtime Verification Confirmed
+
+**Worker**: codex-phase-2-codespaces-runtime-status-worker
+**Status**: `completed`
+**Summary**: Updated the Phase 2 staging evidence from GitHub Codespaces. `scripts/check-config-secrets.sh`, `scripts/ci-verify.sh`, Go tests, Go vet, local fixture regression, migration check, compose config checks, Docker fixture runtime, and fixture cleanup passed. No real upstream provider or real API key was used. Deployment readiness is `internal_gray_ready`; production readiness remains `not_ready`.
+
+**Files modified**: `docs/STAGING_VERIFICATION_REPORT.md`, `docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md`, `docs/CODESPACES_STAGING_EVIDENCE.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation evidence recorded**:
+- `bash scripts/check-config-secrets.sh` passed.
+- `bash scripts/ci-verify.sh` passed with `go version go1.26.1 linux/amd64`, `go test ./model/... -count=1`, `go test ./middleware/... -count=1`, `go test ./... -count=1`, `go vet ./...`, `LOCAL_FIXTURE=1 bash scripts/regression.sh`, and `git diff --check`.
+- `bash scripts/ci-migration-check.sh` passed.
+- `docker compose config` passed.
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- Docker fixture runtime passed in Codespaces, followed by `docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes` cleanup.
+
+**Non-blocking note**: frontend local script checks remain recorded as a non-blocking note because GitHub Actions `frontend-check` has passed.
+
+**Next recommended action**: prepare internal gray test plan.
+
+---
+
 ### 2026-05-20 — Internal Gray Fixture Regression Failure Triage
 
 **Worker**: codex-internal-gray-fixture-triage-worker
