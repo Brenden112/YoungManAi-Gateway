@@ -1,162 +1,150 @@
 # Internal Gray Test Plan
 
-Date: 2026-05-20
+Date: 2026-05-22
 
+Current phase: `Phase 3 internal gray test planning`
 Deployment readiness: `internal_gray_ready`
 Production readiness: `not_ready`
+Next recommended action: `execute internal gray test checklist`
 
-## Purpose
+## Scope
 
-This plan defines the next controlled internal gray test after Phase 2 isolated staging runtime verification passed in GitHub Codespaces. The gray test is intended to validate deployment wiring, account setup, provider policy, billing guards, logs, and rollback behavior in an isolated staging environment before any production release decision.
+This plan defines the small-scope internal gray validation to run before limited beta or production preparation. It is a planning artifact only. It does not authorize production deployment, does not mark production readiness, and does not add product behavior.
 
-This document does not mark the project as production ready.
+## Hard Boundaries
 
-## Boundaries
+- Do not use real high-privilege upstream API keys.
+- Do not call real paid providers unless a human later supplies a low-limit staging-only test key and explicitly approves the call.
+- Do not write real keys, tokens, credentials, prompts, responses, customer data, or production data into documentation, logs, test fixtures, screenshots, or evidence.
+- Do not modify core business logic during this phase.
+- Do not add business features during this phase.
+- Keep `production_readiness = not_ready`.
 
-- Use an isolated staging host, staging database, and staging Redis only.
-- Do not mount or copy production `.env` files.
-- Do not use production customer data, real prompts, or real responses.
-- Do not commit `.env`, `.env.*`, key files, certificates, or controlled staging secrets.
-- Use fake-provider traffic for the required smoke path.
-- Optional real-provider smoke is allowed only if a human release owner supplies an approved staging-only key through an untracked secret source and explicitly approves the provider call.
-- Keep `production_readiness` as `not_ready` until human release sign-off is recorded separately.
+## Test Objectives
 
-## Preconditions
+- Verify the MVP is stable enough for small internal use.
+- Verify user, API key, provider, billing, log, balance, admin, and `experimental_proxy` isolation behavior.
+- Verify whether the release can proceed to limited beta or production preparation after internal gray execution and sign-off.
 
-| Item | Required state |
+## Test Roles
+
+| Role | Purpose |
 |---|---|
-| Pre-release verification | GitHub Actions Pre-release verification #16 on commit `73ad2ff` passed. |
-| Phase 2 isolated staging runtime verification | Passed in GitHub Codespaces. |
-| Docker fixture runtime | `passed_in_codespaces`. |
-| Go/runtime blockers | `closed_in_codespaces`. |
-| API staging blocker | `closed_in_codespaces`. |
-| Frontend local script blocker | `non_blocking_note_ci_frontend_check_passed`. |
-| Deployment readiness | `internal_gray_ready`. |
-| Production readiness | `not_ready`. |
-| Secret source | Manual required: controlled staging secrets must be supplied outside git. |
-| Staging env file | Manual required: copy `.env.staging.example` to untracked `.env.staging`. |
+| Admin user | Configure provider accounts, channels, API keys, balances, and review logs. |
+| Normal user | Validate ordinary API access and prove experimental paths remain hidden and blocked. |
+| Internal user | Validate explicitly opted-in experimental access. |
+| Test organization | Validate org-bound API keys and usage attribution. |
+| Test project | Validate project-bound API keys and usage attribution. |
 
-## Test Environment
+All users, organizations, projects, tokens, and credentials must be staging-only and disposable.
 
-The internal gray environment must use:
+## Test Providers
 
-- One isolated application deployment built from the reviewed branch or commit.
-- Dedicated staging database with no production data.
-- Dedicated staging Redis instance.
-- Staging-only `SESSION_SECRET` and `CRYPTO_SECRET`.
-- Fake upstream provider endpoint for required smoke tests.
-- Optional staging-only real provider key only after explicit release-owner approval.
-
-## Test Accounts And Tokens
-
-Create or verify these staging-only identities:
-
-| Identity | Purpose |
+| Provider | Use in gray test |
 |---|---|
-| Admin user | Configure channels, provider accounts, user quota, and review logs. |
-| Normal user | Validate official provider access and verify `experimental_proxy` remains hidden and blocked. |
-| Internal test user | Validate explicitly approved `experimental_proxy` behavior with `allow_experimental=true`. |
-| Zero-balance user | Validate insufficient balance rejects before upstream routing. |
-| Normal user token | Validate default `allow_experimental=false` behavior. |
-| Internal user token | Validate opt-in `allow_experimental=true` behavior. |
+| Fake provider | Required first path for all smoke and regression tests. |
+| `official_cloud` test provider | Placeholder only by default. Use no real key unless a low-limit staging key is manually approved later. |
+| `experimental_proxy` test provider | Placeholder, default disabled, internal-only, and never visible/callable to normal users. |
+| `aggregator` test provider | Configurable for coverage, but no real call is required in this phase. |
 
-All accounts and tokens must be staging-only and disposable.
+## Required Test Areas
 
-## Execution Steps
+### User And API Key
 
-1. Secret and configuration review
-   - Run `bash scripts/check-config-secrets.sh`.
-   - Confirm `.env.staging` is untracked.
-   - Confirm `.env`, `.env.*`, `secrets/`, `*.key`, `*.pem`, `*.p12`, and `*.pfx` are not committed.
-   - Confirm `CRYPTO_SECRET`, `SESSION_SECRET`, database credentials, and Redis credentials are staging-only.
+- Create a normal user.
+- Create an internal user.
+- Create API keys for user, organization, and project scopes.
+- Verify the full API key plaintext is displayed only once at creation.
+- Verify only API key hash and prefix are stored or returned afterward.
+- Verify a disabled API key cannot call relay APIs.
+- Verify API key binding to user, org, and project is enforced.
+- Verify `allowed_models` is enforced.
+- Verify `allowed_provider_types` is enforced.
 
-2. Deploy isolated staging
-   - Deploy the reviewed commit or branch.
-   - Start application, database, and Redis services.
-   - Confirm health and application startup logs do not print secrets.
+### OpenAI-Compatible API
 
-3. Migration and service verification
-   - Run migration verification appropriate for the staging database.
-   - Run `docker compose config` or the equivalent environment-render check for the staging topology.
-   - Confirm the application can connect to database and Redis.
+- Verify `GET /v1/models`.
+- Verify `POST /v1/chat/completions`.
+- Verify non-streaming chat completion.
+- If the selected channel supports streaming, verify streaming behavior.
+- Verify OpenAI SDK compatibility with the staging endpoint and test key.
 
-4. Required fake-provider smoke
-   - Use the fake-provider fixture path first.
-   - Verify `/v1/models` returns only models visible to the caller.
-   - Verify `/v1/chat/completions` succeeds through the fake OpenAI-compatible provider.
-   - Verify no real upstream provider or API key is used.
+### Provider And Channel
 
-5. Provider policy checks
-   - Normal users cannot see `experimental_proxy` models.
-   - Normal users cannot call `experimental_proxy`.
-   - Internal users can call enabled `experimental_proxy` only with `allow_experimental=true`.
-   - Disabled `experimental_proxy` channels cannot route.
-   - `allowed_provider_types` blocks disallowed route candidates.
-   - Official provider traffic does not fall back to `experimental_proxy`.
+- Verify `official_cloud` channels can be called through fake or approved low-limit staging provider only.
+- Verify `aggregator` can be configured without requiring a real paid call.
+- Verify `ProviderAccount` credentials are encrypted at rest.
+- Verify `ProviderAccount` credentials decrypt only for runtime use.
+- Verify disabled providers cannot route.
+- Verify disabled channels cannot route.
+- Verify legacy channel behavior remains compatible.
 
-6. Billing and quota checks
-   - Zero-balance requests reject before upstream routing.
-   - Successful fixture requests create usage logs with token/quota fields.
-   - Manual top-up changes staging user quota only.
-   - Failed or rejected requests do not deduct quota incorrectly.
+### Experimental Proxy
 
-7. Log and privacy checks
-   - Usage logs do not contain full prompt or response content by default.
-   - Error logs redact provider credentials and sensitive payload fields.
-   - Admin list/search responses expose key prefixes only, not full API keys.
+- Verify `experimental_proxy` defaults to disabled.
+- Verify `experimental_proxy` defaults to internal-only.
+- Verify normal users cannot see experimental models.
+- Verify normal users cannot call experimental models.
+- Verify internal users must have `allow_experimental=true` before calling experimental models.
+- Verify disabled `experimental_proxy` cannot be called by any user.
+- Verify `official_cloud` failure cannot fall back to `experimental_proxy`.
+- Verify fallback, retry, preferred-channel, specific-channel, and legacy paths cannot bypass restrictions.
 
-8. Frontend and admin checks
-   - Confirm GitHub Actions `frontend-check` evidence is attached to the gray record.
-   - Validate admin pages for provider accounts, channels, API keys, usage logs, and balance workflows.
-   - Record the frontend local script blocker only as a non-blocking note unless it fails in the release CI workflow.
+### Billing And Balance
 
-9. Rollback drill
-   - Document the exact previous artifact or branch to restore.
-   - Confirm database migration rollback or forward-fix decision path.
-   - Confirm Redis/session cleanup steps.
-   - Confirm who can execute rollback and who approves it.
+- Verify successful requests record token counts.
+- Verify successful requests calculate cost.
+- Verify successful requests deduct balance.
+- Verify failed requests do not deduct balance incorrectly.
+- Verify zero-balance requests do not call upstream.
+- Verify admin manual top-up works.
+- Verify top-up creates an operation record.
 
-10. Evidence capture and sign-off
-    - Save command names, exit codes, environment name, commit SHA, and operator notes.
-    - Do not store secrets, real prompts, real responses, or customer data in evidence.
-    - Record pass/fail results in the staging report or release sign-off document.
+### Logs And Privacy
 
-## Pass Criteria
+- Verify successful requests write `usage_log`.
+- Verify failed requests write `usage_log` or error log as designed.
+- Verify `usage_log` includes `user_id`, `org_id`, `project_id`, and `api_key_id`.
+- Verify `usage_log` includes `provider_type`, `channel_id`, `provider_account_id`, `model`, token counts, cost, and status.
+- Verify full prompt content is not stored by default.
+- Verify full response content is not stored by default.
+- Verify `params.Other` is redacted.
+- Verify `error_message` is redacted.
+- Verify logs do not leak API keys, provider credentials, bearer tokens, prompts, or responses.
 
-- Required fake-provider smoke passes.
-- Security and provider policy checks pass.
-- Zero-balance rejection happens before upstream routing.
-- Logs do not store prompt/response content by default.
-- No committed secret or real upstream key is found.
-- Rollback owner and rollback path are documented.
-- Production readiness remains `not_ready`.
+### Admin Dashboard
 
-## Fail Or Stop Criteria
+- Verify admin can view providers.
+- Verify admin can view channels.
+- Verify admin can view API keys.
+- Verify admin can disable API keys.
+- Verify admin can view `usage_log`.
+- Verify admin can view user balance.
+- Verify admin can perform manual top-up.
+- Verify normal users cannot access admin pages or admin APIs.
 
-Stop the gray test and do not proceed toward release if any of these occur:
+### Deployment And Regression
 
-- A real secret, real provider key, production prompt, production response, or customer data appears in committed files or test evidence.
-- Normal users can see or call `experimental_proxy`.
-- Disabled experimental channels can route.
-- Zero-balance requests reach upstream routing.
-- Provider credentials appear in API responses, frontend state, logs, or evidence.
-- Staging deployment cannot be rolled back or safely destroyed.
+- Run `bash scripts/check-config-secrets.sh`.
+- Run `bash scripts/ci-verify.sh`.
+- Run `LOCAL_FIXTURE=1 bash scripts/regression.sh`.
+- Run Docker compose fixture smoke.
+- Review GitHub Actions pre-release verification.
+- Attach staging verification evidence.
 
-## Evidence To Record
+## Suggested Schedule
 
-Record the following after execution:
+| Day | Focus |
+|---|---|
+| Day 1 | Fake provider internal validation. |
+| Day 2 | Low-limit `official_cloud` test provider validation only if a staging key is manually approved. |
+| Day 3 | Admin, logs, billing, balance, and error scenario validation. |
+| Day 4-7 | Low-traffic stability observation with internal users only. |
 
-- Commit SHA and branch under test.
-- Staging environment identifier.
-- Commands run and exit codes.
-- Fake-provider smoke result.
-- Provider policy check result.
-- Billing/quota check result.
-- Log privacy check result.
-- Rollback drill result.
-- Non-blocking notes, including the frontend local script note if still present.
-- Human release-owner decision.
+## Evidence Rules
 
-## Next Recommended Action
+Record command names, exit codes, commit SHA, environment name, sanitized observations, issue links, and sign-off decisions. Do not record real credentials, raw bearer tokens, raw API keys, real prompts, real responses, production data, or customer data.
 
-Execute this internal gray test plan with controlled staging secrets and fake-provider traffic first. Keep production readiness as `not_ready` until the release sign-off pack and human release-owner approval are complete.
+## Exit Decision
+
+Use `docs/INTERNAL_GRAY_EXIT_CRITERIA.md` for the formal proceed/stop criteria. Passing this plan can support limited beta or production preparation only; it must not set `production_readiness` to ready.

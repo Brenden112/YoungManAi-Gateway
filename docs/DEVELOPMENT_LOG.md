@@ -5,6 +5,24 @@
 
 ---
 
+### 2026-05-22 — Phase 3 Internal Gray Test Planning
+
+**Worker**: codex-internal-gray-test-planning-worker
+**Status**: `completed`
+**Summary**: Created the Phase 3 internal gray planning pack for small-scope real-use validation before limited beta or production preparation. The pack covers test objectives, roles, providers, user/API key controls, OpenAI-compatible APIs, provider/channel behavior, `experimental_proxy` isolation, billing and balance, logs and privacy, admin dashboard checks, deployment regression gates, a 7-day suggested schedule, exit criteria, and a risk register. No business logic was changed, no feature was added, and production readiness remains `not_ready`.
+
+**Files created**: `docs/INTERNAL_GRAY_TEST_CHECKLIST.md`, `docs/INTERNAL_GRAY_EXIT_CRITERIA.md`, `docs/INTERNAL_GRAY_RISK_REGISTER.md`
+
+**Files modified**: `docs/INTERNAL_GRAY_TEST_PLAN.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `git diff --check` passed.
+- `.factory/mission-state.json` JSON parse passed.
+
+**Next recommended action**: execute internal gray test checklist.
+
+---
+
 ### 2026-05-22 — Phase 2 Isolated Codespaces Runtime Verification Confirmed
 
 **Worker**: codex-phase-2-codespaces-runtime-status-worker

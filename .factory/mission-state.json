@@ -2,8 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_milestone": "PHASE-2",
-  "current_feature": "phase-2-isolated-codespaces-runtime-verification-2026-05-22",
+  "current_phase": "Phase 3 internal gray test planning",
+  "current_milestone": "PHASE-3",
+  "current_feature": "internal-gray-test-planning-2026-05-22",
   "overall_status": "internal_gray_ready",
   "completed_milestones": [
     "M0",
@@ -114,7 +115,8 @@
     "REMOTE-CODEX-PHASE-1-MISSION-STATUS-RECONCILIATION-2026-05-20",
     "REMOTE-CODEX-PHASE-2-CODESPACES-STAGING-PASSED-2026-05-20",
     "INTERNAL-GRAY-TEST-PLAN-2026-05-20",
-    "REMOTE-CODEX-PHASE-2-ISOLATED-CODESPACES-RUNTIME-PASSED-2026-05-22"
+    "REMOTE-CODEX-PHASE-2-ISOLATED-CODESPACES-RUNTIME-PASSED-2026-05-22",
+    "PHASE-3-INTERNAL-GRAY-TEST-PLANNING-2026-05-22"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -152,10 +154,11 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "phase-2-isolated-staging-runtime-verification",
-    "milestone": "PHASE-2",
-    "worker": "codex-phase-2-codespaces-runtime-status-worker",
+    "phase": "internal-gray-test-planning",
+    "milestone": "PHASE-3",
+    "worker": "codex-internal-gray-test-planning-worker",
     "status": "completed",
+    "current_phase": "Phase 3 internal gray test planning",
     "phase_2_status": "passed",
     "isolated_staging_runtime_verification_status": "passed",
     "codespaces_staging_status": "passed",
@@ -166,18 +169,18 @@
       "frontend local script checks remain blocked in ci-verify.sh because root package scripts/web dependencies are missing, but GitHub Actions frontend-check has passed."
     ],
     "files_modified": [
-      "docs/STAGING_VERIFICATION_REPORT.md",
-      "docs/PRE_DEPLOYMENT_REVIEW_CHECKLIST.md",
-      "docs/CODESPACES_STAGING_EVIDENCE.md",
+      "docs/INTERNAL_GRAY_TEST_PLAN.md",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "files_created": [],
-    "implementation_summary": "Recorded GitHub Codespaces evidence that Phase 2 isolated staging runtime verification passed. Config secret checks, ci-verify, Go tests, Go vet, local fixture regression, migration checks, compose config checks, Docker fixture runtime, and cleanup passed with fake-provider traffic only. No business logic was modified.",
-    "failure_reason": "",
-    "blockers_closed": [
-      "INTERNAL-GRAY-FIXTURE-REGRESSION-2026-05-20"
+    "files_created": [
+      "docs/INTERNAL_GRAY_TEST_CHECKLIST.md",
+      "docs/INTERNAL_GRAY_EXIT_CRITERIA.md",
+      "docs/INTERNAL_GRAY_RISK_REGISTER.md"
     ],
+    "implementation_summary": "Created the Phase 3 internal gray planning pack covering test objectives, roles, provider boundaries, required checks, checklist, exit criteria, and risk register. No business logic was modified and no business feature was added.",
+    "failure_reason": "",
+    "blockers_closed": [],
     "blockers_moved_to_ci": [],
     "waiver_files_created": [],
     "ci_files_created_or_modified": [],
@@ -186,44 +189,19 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "bash scripts/check-config-secrets.sh",
+        "command": "git diff --check",
         "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed."
+        "observation": "Whitespace check passed."
       },
       {
-        "command": "bash scripts/ci-verify.sh",
+        "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed with Go 1.26.1, Go tests, Go vet, LOCAL_FIXTURE regression, and git diff check passing."
-      },
-      {
-        "command": "bash scripts/ci-migration-check.sh",
-        "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed."
-      },
-      {
-        "command": "docker compose config",
-        "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed."
-      },
-      {
-        "command": "LOCAL_FIXTURE=1 bash scripts/regression.sh",
-        "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: passed without real upstream providers or real API keys."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml down --remove-orphans --volumes",
-        "exit_code": 0,
-        "observation": "Reported by user from GitHub Codespaces: cleanup passed."
+        "observation": "Mission state JSON parse passed."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "next_recommended_action": "prepare internal gray test plan"
+    "next_recommended_action": "execute internal gray test checklist"
   },
   "validation_status": {
     "VAL-DISC-001": "completed",
@@ -417,8 +395,8 @@
     "fail": [],
     "blocked": []
   },
-  "next_recommended_action": "prepare internal gray test plan",
-  "updated_at": "2026-05-20T00:00:00+08:00",
+  "next_recommended_action": "execute internal gray test checklist",
+  "updated_at": "2026-05-22T00:00:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -622,7 +600,11 @@
   "high_findings_remaining": 0,
   "deployment_readiness": "internal_gray_ready",
   "production_readiness": "not_ready",
+  "current_phase": "Phase 3 internal gray test planning",
   "internal_gray_test_plan_status": "prepared",
+  "internal_gray_test_checklist_status": "prepared",
+  "internal_gray_exit_criteria_status": "prepared",
+  "internal_gray_risk_register_status": "prepared",
   "internal_gray_test_execution_status": "pending_plan_execution",
   "staging_verification_status": "passed",
   "staging_hardening_status": "completed_with_blockers",
