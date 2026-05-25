@@ -5,6 +5,29 @@
 
 ---
 
+### 2026-05-25 — Internal Gray Runtime Retry Closure
+
+**Worker**: codex-internal-gray-runtime-retry-closure-worker
+**Status**: `passed`
+**Summary**: Closed Phase 4 runtime retry. Docker fixture build SIGTERM is now `fixed_by_fixture_dockerfile`, and the previously blocked runtime checks are marked `passed_in_codespaces`. The closure confirms `Dockerfile.fixture` is only for local fixture / staging smoke, not production; no frontend business code, backend business logic, billing logic, security logic, routing logic, or business feature was changed.
+
+**Files modified**: `docs/INTERNAL_GRAY_TEST_REPORT.md`, `docs/INTERNAL_GRAY_ISSUES.md`, `docs/INTERNAL_GRAY_SIGNOFF.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- Fixture build status: `passed`.
+- Runtime regression: `9 passed, 0 failed`.
+- `/api/status` and fixture seed passed in the fixture network.
+- `FIXTURE_PORT=3001` was used because `localhost:3000` was occupied by unrelated container `aiclient2api`.
+- Fake upstream and placeholder fixture keys were used.
+- No real provider key was used and no real upstream provider was called.
+- Exit criteria met: `true`.
+- Deployment readiness: `limited_beta_ready`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: prepare limited beta release plan.
+
+---
+
 ### 2026-05-25 — Phase 4 Runtime Retry Fixture Build Stability
 
 **Worker**: codex-fixture-build-stability-worker

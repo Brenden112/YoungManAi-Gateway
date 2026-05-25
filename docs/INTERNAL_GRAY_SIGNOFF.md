@@ -1,43 +1,80 @@
 # Internal Gray Signoff
 
-Date: 2026-05-22
-Phase: `internal-gray-test-execution`
+## 2026-05-25 Runtime Retry Closure
+
+Phase: `internal-gray-runtime-retry-closure`
+Status: `passed`
+Fixture build status: `passed`
+Runtime regression: `9 passed, 0 failed`
+Exit criteria met: `true`
+Deployment readiness: `limited_beta_ready`
+Production readiness: `not_ready`
+Next recommended action: `prepare limited beta release plan`
+
+## Closure Decision
+
+The internal gray runtime retry is closed as passed for limited beta readiness. This does not mark production ready.
+
+## Closure Evidence
+
+- Docker fixture build SIGTERM is `fixed_by_fixture_dockerfile`.
+- Previously blocked runtime checks are `passed_in_codespaces`.
+- `Dockerfile.fixture` is only for local fixture / staging smoke and is not a production Dockerfile.
+- `FIXTURE_PORT=3001` was used because `localhost:3000` was occupied by unrelated container `aiclient2api`.
+- `/api/status` succeeded in the fixture network.
+- `scripts/seed-local-fixture.sh` succeeded.
+- `scripts/regression.sh` passed: `9 passed, 0 failed`.
+- Fake upstream and placeholder fixture keys were used.
+- No real provider key was used.
+- No real upstream provider was called.
+- No business logic was modified.
+- No business feature was added.
+
+## Closure Signoff Position
+
+| Question | Decision |
+|---|---|
+| Recommend limited beta? | `yes` |
+| Recommend production readiness? | `no` |
+| Keep production readiness as `not_ready`? | `yes` |
+
+Date: 2026-05-25
+Phase: `internal-gray-runtime-retry-closure`
 Environment: local workspace `/mnt/d/Projects/new-api`
 Test commit: `c961125c`
-Status: `completed_with_notes`
-Deployment readiness: `internal_gray_passed_with_notes`
+Status: `passed`
+Deployment readiness: `limited_beta_ready`
 Production readiness: `not_ready`
 
 ## Decision
 
-This Phase 4 local execution does not authorize production deployment and does not mark production ready.
+This Phase 4 runtime retry closure authorizes preparation of a limited beta release plan. It does not authorize production deployment and does not mark production ready.
 
 ## Findings
 
 - Critical findings: `0`
 - High findings: `0`
-- Medium findings: `4`
+- Medium findings: `0`
 - Low findings: `1`
-- Exit criteria met: `false`
+- Exit criteria met: `true`
 
 ## Signoff Position
 
 | Question | Decision |
 |---|---|
-| Recommend limited beta? | `no_not_from_this_local_execution_alone` |
-| Recommend production preparation? | `no` |
+| Recommend limited beta? | `yes_limited_beta_ready` |
+| Recommend production preparation? | `no_production_readiness_still_not_ready` |
 | Recommend production readiness? | `no` |
 | Keep production readiness as `not_ready`? | `yes` |
 
 ## Rationale
 
-The local run found no critical or high product issue, and prior Phase 2 Codespaces evidence supports the core fake-provider runtime path. However, this local Phase 4 execution could not complete fresh runtime fixture startup, seed, curl smoke, Go-backed local regression, API SDK/stream checks, or several admin/log runtime checks because Go, `jq`, and Docker daemon operations were unavailable.
+The runtime retry closed the prior fixture runtime blockers. Docker fixture build SIGTERM is `fixed_by_fixture_dockerfile`; previously blocked runtime checks are `passed_in_codespaces`; fake-provider runtime regression passed `9 passed, 0 failed`. `FIXTURE_PORT=3001` was used only because `localhost:3000` was occupied by unrelated container `aiclient2api`. No real provider key was used, no real upstream provider was called, no business logic was modified, and no business feature was added.
 
 ## Required Before Next Decision
 
-- Rerun the blocked internal gray checklist items in a Docker-capable environment with Go and `jq`.
-- Capture sanitized evidence for fixture seed, curl smoke, API key controls, OpenAI-compatible API checks, provider/channel checks, experimental isolation, billing/balance, logs/privacy, and admin access.
-- Re-evaluate `docs/INTERNAL_GRAY_EXIT_CRITERIA.md`.
+- Prepare the limited beta release plan.
+- Keep `Dockerfile.fixture` scoped to local fixture / staging smoke only.
 - Keep `production_readiness = not_ready` until a separate production readiness review is explicitly requested.
 
 ## Human Signoff

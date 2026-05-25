@@ -1,5 +1,24 @@
 # Internal Gray Issues
 
+## 2026-05-25 Runtime Retry Closure
+
+Runtime retry closure status: `passed`
+
+| ID | Severity | Status | Finding | Evidence | Closure |
+|---|---|---|---|---|---|
+| IG-2026-05-25-001 | Medium | `fixed_by_fixture_dockerfile` | Docker fixture build could be killed in the production `builder-classic` frontend stage under Codespaces resource pressure. | `Dockerfile.fixture` removes `builder-classic` from fixture builds; fixture build passed. | Closed. Fixture-only path is local fixture / staging smoke only, not production. |
+| IG-2026-05-25-002 | Low | `environment_note` | Exact `localhost:3000` replay was blocked by unrelated container `aiclient2api`. | Validation used `FIXTURE_PORT=3001` and `new-api_fixture-network`; runtime regression passed `9 passed, 0 failed`. | Non-product environment note. |
+| IG-2026-05-22-runtime-blockers | Medium | `passed_in_codespaces` | Previously blocked fixture runtime checks needed Docker-capable execution. | `/api/status`, fixture seed, and runtime regression passed with fake upstream and placeholder fixture keys. | Closed for internal gray runtime retry. |
+
+Closure readiness:
+
+- Critical findings: `0`
+- High findings: `0`
+- Exit criteria met: `true`
+- Deployment readiness: `limited_beta_ready`
+- Production readiness: `not_ready`
+- Next recommended action: `prepare limited beta release plan`
+
 ## 2026-05-25 Runtime Retry Update
 
 Fixture build instability is closed for the fixture path. `Dockerfile.fixture` removes the production Dockerfile's separate classic frontend build from `docker-compose.fixture.yml`, and the fixture image built successfully before runtime validation.
@@ -18,23 +37,23 @@ Test commit: `c961125c`
 
 ## Summary
 
-No critical or high product issue was found in this Phase 4 local execution. The run is `completed_with_notes` because local environment blockers prevented a complete fresh internal gray runtime execution.
+No critical or high product issue was found. The Phase 4 runtime retry closure is `passed`; prior fixture runtime blockers are now `passed_in_codespaces`.
 
 | Severity | Count |
 |---|---:|
 | Critical | 0 |
 | High | 0 |
-| Medium | 4 |
+| Medium | 0 |
 | Low | 1 |
 
 ## Open Issues
 
 | ID | Severity | Status | Finding | Evidence | Recommended next step |
 |---|---|---|---|---|---|
-| IG-2026-05-22-001 | Medium | Open | Local Go toolchain is unavailable, blocking `ci-verify.sh` Go checks and `LOCAL_FIXTURE=1 bash scripts/regression.sh`. | `command -v go` exited 1; regression exited 2 with `Go binary not found`. | Rerun in Codespaces or staging host with Go available. |
-| IG-2026-05-22-002 | Medium | Open | Local `jq` is unavailable, blocking fixture seed. | `command -v jq` exited 1; `scripts/seed-local-fixture.sh` exited 1 with `missing required command: jq`. | Install `jq` in the internal gray executor or run in Codespaces. |
-| IG-2026-05-22-003 | Medium | Open | Docker daemon operations are unavailable in this local environment. | `docker ps`, fixture `up`, and fixture `down` returned `Failed to initialize: protocol not available`. | Rerun Docker fixture runtime on Docker-capable staging host or Codespaces. |
-| IG-2026-05-22-004 | Medium | Open | Fresh curl smoke and runtime admin/log checks could not execute because fixture startup was blocked. | `curl http://localhost:3000/api/status` exited 7 because no server was running. | Rerun after fixture startup succeeds. |
+| IG-2026-05-22-001 | Medium | `passed_in_codespaces` | Local Go toolchain was unavailable, blocking `ci-verify.sh` Go checks and `LOCAL_FIXTURE=1 bash scripts/regression.sh`. | Runtime retry closure passed; regression passed `9 passed, 0 failed` in Docker fixture path. | Closed for internal gray runtime retry. |
+| IG-2026-05-22-002 | Medium | `passed_in_codespaces` | Local `jq` was unavailable, blocking fixture seed. | Fixture seed succeeded in Docker fixture path with placeholder fixture keys. | Closed for internal gray runtime retry. |
+| IG-2026-05-22-003 | Medium | `passed_in_codespaces` | Docker daemon operations were unavailable in the prior local context. | Fixture build passed through `Dockerfile.fixture`; runtime checks passed in Docker fixture path. | Closed for internal gray runtime retry. |
+| IG-2026-05-22-004 | Medium | `passed_in_codespaces` | Fresh curl smoke and runtime admin/log checks could not execute because fixture startup was blocked. | `/api/status` succeeded in fixture network; runtime regression passed `9 passed, 0 failed`. | Closed for internal gray runtime retry. |
 | IG-2026-05-22-005 | Low | Open | Frontend local script checks remain a non-blocking local environment note. | `ci-verify.sh` recorded frontend dependencies missing while GitHub Actions `frontend-check` evidence is passed. | Keep CI frontend-check evidence current; install frontend dependencies only if local frontend validation is required. |
 
 ## Stop Criteria Review

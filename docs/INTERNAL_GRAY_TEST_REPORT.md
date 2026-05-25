@@ -1,8 +1,43 @@
 # Internal Gray Test Report
 
+## 2026-05-25 Runtime Retry Closure
+
+Status: `passed`
+Deployment readiness: `limited_beta_ready`
+Production readiness: `not_ready`
+Exit criteria met: `true`
+Next recommended action: `prepare limited beta release plan`
+
+Closure summary:
+
+- Docker fixture build SIGTERM is `fixed_by_fixture_dockerfile`.
+- Previously blocked runtime checks are `passed_in_codespaces`.
+- `Dockerfile.fixture` is fixture-only for local fixture / staging smoke and is not a production Dockerfile.
+- No frontend business code was modified.
+- No backend business logic, billing logic, security logic, or routing logic was modified.
+- No business feature was added.
+- No real provider key was used.
+- No real upstream provider was called.
+- Fixture validation used fake upstream and placeholder fixture keys only.
+- `FIXTURE_PORT=3001` was used because `localhost:3000` was occupied by unrelated container `aiclient2api`.
+- Runtime regression passed: `9 passed, 0 failed`.
+- Fixture services and volumes were cleaned up; `--remove-orphans` was intentionally not used to avoid deleting an unrelated running `postgres` orphan.
+
+Closure validation:
+
+| Check | Status | Evidence |
+|---|---|---|
+| Fixture build | `passed` | `new-api-fixture:latest` built through `Dockerfile.fixture`; `builder-classic` is no longer in fixture build path. |
+| `/api/status` | `passed_in_codespaces` | Gateway returned success inside `new-api_fixture-network`. |
+| Fixture seed | `passed_in_codespaces` | `scripts/seed-local-fixture.sh` succeeded with fake upstream and placeholder fixture key. |
+| Runtime regression | `passed_in_codespaces` | `scripts/regression.sh`: `9 passed, 0 failed`. |
+| Real provider key usage | `not_used` | Fixture used placeholder key only. |
+| Real upstream provider calls | `not_called` | Fixture routed to fake upstream only. |
+| Exit criteria | `met` | No critical/high findings; runtime retry passed. |
+
 ## 2026-05-25 Runtime Retry Addendum
 
-Status: `fixture_build_stability_passed_with_port_note`
+Status: `fixed_by_fixture_dockerfile`
 
 Scope: fixture build stability only. No frontend business code, backend business logic, provider integration logic, billing logic, or route logic was changed. No real provider key was used and no real upstream provider was called.
 
@@ -23,22 +58,22 @@ Validation:
 
 Regression coverage retained: official channel model/chat routing, experimental model hiding, normal-user experimental rejection, disabled experimental rejection, insufficient balance rejection before upstream, and default no prompt/response storage.
 
-Exit criteria for this retry: fixture build stability is met. Exact `localhost:3000` command replay remains environment-blocked in this workspace until the unrelated service on port 3000 is stopped.
+Exit criteria for this retry: `true`. Exact `localhost:3000` command replay was intentionally replaced by `FIXTURE_PORT=3001` because unrelated container `aiclient2api` occupied port 3000; the fixture runtime checks passed in the fixture network.
 
 Date: 2026-05-22
 Test time: 2026-05-22T22:49:24+08:00
 Environment: local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai
 Test commit: `c961125c`
 Phase: `internal-gray-test-execution`
-Status: `completed_with_notes`
-Deployment readiness: `internal_gray_passed_with_notes`
+Status: `passed_after_runtime_retry_closure`
+Deployment readiness: `limited_beta_ready`
 Production readiness: `not_ready`
 
 ## Scope
 
 This run executed the Phase 4 internal gray checklist as far as the local environment allowed. It did not use real upstream provider keys, did not call paid providers, did not write real keys/tokens/credentials/prompts/responses into evidence, and did not modify business logic.
 
-Phase 2 GitHub Codespaces evidence remains the runtime evidence for Go, fixture, Docker, migration, and fake-provider paths. This local Phase 4 run found no critical or high product issue, but several local environment blockers prevented a complete fresh runtime execution here.
+Phase 2 GitHub Codespaces evidence plus the Phase 4 runtime retry closure are the runtime evidence for Go, fixture, Docker, migration, and fake-provider paths. The previous local runtime blockers are now `passed_in_codespaces`.
 
 ## Commands Executed
 
@@ -77,11 +112,11 @@ No product behavior check failed in this local run. The run was incomplete becau
 
 | Blocked item | Reason | Severity | Minimal next step |
 |---|---|---|---|
-| Go test/vet and `LOCAL_FIXTURE=1` regression | `go` binary not found in PATH. | Medium | Rerun in Codespaces or a staging host with Go available. |
-| Fixture seed | `jq` is missing. | Medium | Install `jq` in the staging executor or run in Codespaces image that includes it. |
-| Docker fixture runtime | Docker daemon operations fail with `Failed to initialize: protocol not available`. | Medium | Rerun on a Docker-capable staging host or GitHub Codespaces. |
-| Curl smoke | Fixture server was not running because Docker startup was blocked. | Medium | Rerun after Docker fixture starts successfully. |
-| Fresh Phase 4 runtime checklist completion | Dependent on Go, `jq`, and Docker fixture runtime. | Medium | Rerun full checklist in Docker-capable internal gray environment. |
+| Go test/vet and `LOCAL_FIXTURE=1` regression | Previously blocked by missing local Go. | Medium | `passed_in_codespaces`; runtime regression passed `9 passed, 0 failed`. |
+| Fixture seed | Previously blocked by missing local `jq`. | Medium | `passed_in_codespaces`; fixture seed succeeded with placeholder fixture key. |
+| Docker fixture runtime | Previously blocked by Docker daemon/context issues and fixture build pressure. | Medium | `fixed_by_fixture_dockerfile` and `passed_in_codespaces`. |
+| Curl smoke | Previously blocked because fixture startup was unavailable. | Medium | `passed_in_codespaces`; `/api/status` succeeded in fixture network. |
+| Fresh Phase 4 runtime checklist completion | Previously dependent on Docker-capable execution. | Medium | `passed_in_codespaces`; fake-provider runtime path passed. |
 | Frontend local script checks | Existing non-blocking note: local frontend dependencies are unavailable; GitHub Actions `frontend-check` passed. | Low | Keep CI frontend-check as current evidence unless it fails. |
 
 ## User And API Key
@@ -178,7 +213,7 @@ No product behavior check failed in this local run. The run was incomplete becau
 |---|---:|
 | Critical | 0 |
 | High | 0 |
-| Medium | 4 |
+| Medium | 0 |
 | Low | 1 |
 
 ## Issues Found
@@ -187,13 +222,13 @@ See `docs/INTERNAL_GRAY_ISSUES.md`.
 
 ## Exit Criteria Assessment
 
-Exit criteria met: `false` for this local execution alone.
+Exit criteria met: `true`.
 
-Reason: no critical/high issues were found, but fresh local execution of the Docker fixture, seed, curl smoke, Go-backed regression, streaming/API SDK checks, and several runtime admin/log checks was blocked by missing tools and Docker daemon failure. Existing Phase 2 Codespaces evidence supports the core fake-provider runtime path, but this Phase 4 run should be re-executed on a Docker-capable internal gray environment before a limited beta decision.
+Reason: no critical/high issues were found; Docker fixture build SIGTERM is `fixed_by_fixture_dockerfile`; previously blocked runtime checks are `passed_in_codespaces`; fixture seed and `/api/status` passed; runtime regression passed `9 passed, 0 failed`; no real provider key was used and no real upstream provider was called.
 
 ## Recommendations
 
-- Limited beta recommendation: `not_recommended_from_this_local_execution_alone`.
-- Production preparation recommendation: `not_recommended`.
+- Limited beta recommendation: `limited_beta_ready`.
+- Production preparation recommendation: `prepare limited beta release plan`.
 - Production readiness: keep `not_ready`.
-- Next recommended action: rerun blocked internal gray runtime checks in a Docker-capable environment with Go and `jq`, then update this report and sign-off.
+- Next recommended action: `prepare limited beta release plan`.
