@@ -1,5 +1,30 @@
 # Internal Gray Test Report
 
+## 2026-05-25 Runtime Retry Addendum
+
+Status: `fixture_build_stability_passed_with_port_note`
+
+Scope: fixture build stability only. No frontend business code, backend business logic, provider integration logic, billing logic, or route logic was changed. No real provider key was used and no real upstream provider was called.
+
+Change: `docker-compose.fixture.yml` now uses `Dockerfile.fixture`, a fixture-only local/staging-smoke build path. It builds the default frontend and full Go backend, then reuses the default dist as the embedded classic dist inside the fixture image only. Production images still use `Dockerfile`.
+
+Validation:
+
+| Command | Exit | Result |
+|---|---:|---|
+| `docker compose -f docker-compose.fixture.yml config` | 0 | Passed; compose renders with `Dockerfile.fixture`. |
+| `docker compose -f docker-compose.fixture.yml up -d --build` | image build passed; startup blocked on host port | The fixture image built successfully; the previous `builder-classic` SIGTERM path is removed from fixture builds. Host port 3000 startup was blocked by unrelated container `aiclient2api`. |
+| `curl -fsS http://localhost:3000/api/status` | blocked locally | Not run against fixture because port 3000 belongs to unrelated `aiclient2api` in this workspace. |
+| `FIXTURE_PORT=3001 docker --context default compose -f docker-compose.fixture.yml up -d --build` | 0 | Passed; fixture started on a free host port. |
+| `docker --context default run --rm --network new-api_fixture-network curlimages/curl:8.16.0 -fsS http://new-api:3000/api/status` | 0 | Passed; gateway returned success inside the fixture network. |
+| `BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh` inside an isolated Alpine helper on `new-api_fixture-network` | 0 | Passed; seeded fake official and experimental channels with placeholder fixture keys. |
+| `BASE_URL=http://new-api:3000 ADMIN_TOKEN=... ADMIN_USER_ID=1 bash scripts/regression.sh` inside the same fixture network | 0 | Passed: 9 passed, 0 failed. |
+| `docker --context default compose -f docker-compose.fixture.yml down --volumes` | 0 | Passed; fixture services and volumes removed. `--remove-orphans` was not used locally to avoid deleting an unrelated running `postgres` orphan. |
+
+Regression coverage retained: official channel model/chat routing, experimental model hiding, normal-user experimental rejection, disabled experimental rejection, insufficient balance rejection before upstream, and default no prompt/response storage.
+
+Exit criteria for this retry: fixture build stability is met. Exact `localhost:3000` command replay remains environment-blocked in this workspace until the unrelated service on port 3000 is stopped.
+
 Date: 2026-05-22
 Test time: 2026-05-22T22:49:24+08:00
 Environment: local workspace `/mnt/d/Projects/new-api`, shell timezone Asia/Shanghai

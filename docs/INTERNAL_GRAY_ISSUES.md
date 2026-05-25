@@ -1,5 +1,16 @@
 # Internal Gray Issues
 
+## 2026-05-25 Runtime Retry Update
+
+Fixture build instability is closed for the fixture path. `Dockerfile.fixture` removes the production Dockerfile's separate classic frontend build from `docker-compose.fixture.yml`, and the fixture image built successfully before runtime validation.
+
+New environment note: exact host-port validation on `localhost:3000` is blocked in this workspace because unrelated container `aiclient2api` already publishes port 3000. Equivalent fixture validation passed on `FIXTURE_PORT=3001` and inside `new-api_fixture-network`.
+
+| ID | Severity | Status | Finding | Evidence | Recommended next step |
+|---|---|---|---|---|---|
+| IG-2026-05-25-001 | Medium | Closed | Codespaces-style fixture build pressure from the production `builder-classic` stage caused build instability. | `new-api-fixture:latest` built successfully through `Dockerfile.fixture`; regression passed 9/9 against fake upstream. | Keep `Dockerfile.fixture` scoped to local fixture / staging smoke; continue using production `Dockerfile` for release images. |
+| IG-2026-05-25-002 | Low | Open | Exact local `localhost:3000` fixture replay is blocked by an unrelated running service. | Docker reports `aiclient2api` publishing `0.0.0.0:3000->3000/tcp`. | Free port 3000 before exact command replay, or set `FIXTURE_PORT` for side-by-side local validation. |
+
 Date: 2026-05-22
 Phase: `internal-gray-test-execution`
 Environment: local workspace `/mnt/d/Projects/new-api`

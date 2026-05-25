@@ -6,7 +6,9 @@ services:
   new-api:
     build:
       context: .
-      dockerfile: Dockerfile
+      # Fixture-only build path for local fixture / staging smoke.
+      # Production images must continue to use Dockerfile.
+      dockerfile: Dockerfile.fixture
     image: new-api-fixture:latest
     restart: unless-stopped
     ports:

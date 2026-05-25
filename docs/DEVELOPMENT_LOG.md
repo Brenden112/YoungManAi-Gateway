@@ -5,6 +5,29 @@
 
 ---
 
+### 2026-05-25 — Phase 4 Runtime Retry Fixture Build Stability
+
+**Worker**: codex-fixture-build-stability-worker
+**Status**: `fixture_build_stability_passed_with_port_note`
+**Summary**: Added a fixture-only Docker build path for local fixture / staging smoke. `docker-compose.fixture.yml` now builds `Dockerfile.fixture`, which keeps the default frontend build and full Go backend build but avoids the production Dockerfile's separate `builder-classic` frontend build that was being SIGTERM-killed in Codespaces. The fixture image copies the default dist into the embedded classic dist path only inside the fixture build image so Go embed requirements are satisfied without changing frontend business code. Production images continue to use `Dockerfile`.
+
+**Files created**: `Dockerfile.fixture`
+
+**Files modified**: `docker-compose.fixture.yml`, `docs/INTERNAL_GRAY_TEST_REPORT.md`, `docs/INTERNAL_GRAY_ISSUES.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `docker compose -f docker-compose.fixture.yml config` passed.
+- `docker compose -f docker-compose.fixture.yml up -d --build` through the default Docker context built `new-api-fixture:latest` successfully; the previous `builder-classic` SIGTERM path is no longer part of fixture builds.
+- Exact host-port startup on `localhost:3000` was blocked by unrelated running container `aiclient2api` already publishing port 3000.
+- Equivalent isolated fixture runtime validation passed on `FIXTURE_PORT=3001` and inside `new-api_fixture-network`; `/api/status` returned success from `http://new-api:3000`.
+- Fixture seed used only placeholder fixture keys and fake upstream `http://fake-upstream:4010`.
+- `scripts/regression.sh` passed inside the fixture network: 9 passed, 0 failed.
+- Cleanup removed fixture services and volumes. `--remove-orphans` was intentionally not used locally because Docker reported an unrelated running `postgres` orphan under the same compose project.
+
+**Next recommended action**: rerun the exact `localhost:3000` fixture command sequence in Codespaces after freeing port 3000, or set `FIXTURE_PORT` when validating alongside another local service.
+
+---
+
 ### 2026-05-22 — Phase 4 Internal Gray Test Execution
 
 **Worker**: codex-internal-gray-test-execution-worker
