@@ -4,17 +4,45 @@ Date: 2026-05-25
 Test time: 2026-05-25T20:30:48+08:00
 Environment: local workspace `/mnt/d/Projects/new-api`; Docker fixture network `new-api_fixture-network`; fake upstream only
 Commit: `675091d0`
-Phase: `limited-beta-execution`
-Status: `completed_with_notes`
-Deployment readiness: `limited_beta_passed_with_notes`
+Phase: `limited-beta-notes-resolution`
+Status: `completed_with_manual_gate`
+Deployment readiness: `production_preparation_ready_with_manual_provider_gate`
 Production readiness: `not_ready`
-Next recommended action: `resolve beta notes before production preparation`
+Next recommended action: `decide whether to run low-limit real provider beta or prepare production sign-off pack`
 
 ## Scope
 
 This run executed the limited beta checklist against the local Docker fixture and current repository evidence. It did not use a real provider key, did not call a paid upstream provider, did not write real keys/tokens/credentials/prompts/responses into evidence, and did not modify business logic.
 
 The fixture used placeholder non-secret provider values and fake upstream traffic only. The real `official_cloud` low-limit provider path remains pending manual approval and a human-supplied low-limit test key.
+
+## Phase 6B Notes Resolution
+
+| Item | Result | Evidence |
+|---|---|---|
+| LBI-001 local Go unavailable | `closed_by_codespaces_or_ci` | Local Go is still unavailable, but GitHub Actions `Pre-release verification` run 24 passed for commit `57ad3623`. Windows/local Go absence does not block fake-provider beta. |
+| LBI-002 org/project runtime workflow | `closed` | Fixture-only org/project rows were created; org/project-bound API key successfully called `/v1/models` and `/v1/chat/completions`; usage log used token-context org/project IDs and ignored spoofed client IDs; disabled org/project token creation was rejected; allowed models/provider types remained enforced. |
+| LBI-003 real low-limit provider | `manual_required` | No low-limit real provider key was supplied; no real provider call was made. This remains a release-owner manual gate. |
+| LBI-004 streaming smoke | `closed` | `stream=true` returned SSE/chunk output, wrote log evidence, preserved org/project context, did not store full prompt/response, and did not bypass policy. |
+| LBI-005 OpenAI SDK smoke | `closed` | OpenAI Node SDK passed `models.list`, non-streaming chat, and streaming chat against the fixture endpoint. |
+
+Phase 6B fake-provider beta exit: `true_for_fake_provider_beta`.
+
+## Phase 6B Commands Run
+
+| Command | Exit | Result |
+|---|---:|---|
+| `bash scripts/check-config-secrets.sh` | 0 | Passed. |
+| `bash scripts/ci-verify.sh` | 2 | No failed checks locally; Go/frontend checks blocked locally and closed by CI/Codespaces evidence. |
+| GitHub Actions pre-release verification API check | 0 | Run 24 passed for commit `57ad3623`. |
+| `docker compose -f docker-compose.fixture.yml up -d --build` | 1 | Fixture image built, but host port 3000 was already allocated. |
+| `FIXTURE_PORT=3001 docker --context default compose -f docker-compose.fixture.yml up -d --build` | 0 | Clean fixture started on free host port 3001. |
+| `BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh` in helper container | 0 | Fixture seeded with fake upstream and placeholder key. |
+| Fixture-only org/project runtime smoke | 0 | Passed 19 checks. |
+| OpenAI Node SDK smoke | 0 | Passed `models.list`, non-streaming chat, and streaming chat. |
+| `docker --context default compose -f docker-compose.fixture.yml down --remove-orphans --volumes` | 0 | Fixture cleaned up. |
+| `git diff --check` | 0 | Passed; existing CRLF warnings only. |
+| `node -e "JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))"` | 0 | Passed. |
 
 ## Commands Run
 

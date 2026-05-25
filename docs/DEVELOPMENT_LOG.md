@@ -5,6 +5,34 @@
 
 ---
 
+### 2026-05-25 — Phase 6B Limited Beta Notes Resolution
+
+**Worker**: codex-limited-beta-notes-resolution-worker
+**Status**: `completed_with_manual_gate`
+**Summary**: Resolved fake-provider limited beta notes. LBI-002 org/project runtime binding passed with fixture-only tenant records; LBI-004 streaming smoke passed; LBI-005 OpenAI Node SDK smoke passed. LBI-001 is closed by CI/Codespaces evidence because GitHub Actions `Pre-release verification` run 24 passed for commit `57ad3623`. LBI-003 remains `manual_required` because no release-owner-approved low-limit real provider key was supplied. No real provider key was used, no real upstream provider was called, and no business logic was modified.
+
+**Files created**: `docs/LIMITED_BETA_SDK_SMOKE.md`
+
+**Files modified**: `docs/LIMITED_BETA_TEST_REPORT.md`, `docs/LIMITED_BETA_ISSUES.md`, `docs/LIMITED_BETA_SIGNOFF.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash scripts/check-config-secrets.sh` passed.
+- `bash scripts/ci-verify.sh` had no failed checks locally; local Go/frontend checks remain blocked but are closed by CI/Codespaces.
+- GitHub Actions `Pre-release verification` run 24 passed for commit `57ad3623`.
+- Clean Docker fixture started on `FIXTURE_PORT=3001` after the requested plain port 3000 startup was blocked by an existing listener.
+- Fixture seed script passed in an Alpine helper container.
+- LBI-002 org/project runtime smoke passed: token-context org/project IDs were written to usage logs, spoofed client IDs were ignored, disabled org/project token creation was rejected, and allowed model/provider type limits were enforced.
+- LBI-004 streaming smoke passed: SSE/chunk response, usage log, no full prompt/response storage, and preserved org/project policy.
+- LBI-005 OpenAI SDK smoke passed: `models.list`, non-streaming chat, and streaming chat.
+- Critical findings: `0`; high findings: `0`; medium findings: `0`; low findings: `0`.
+- Manual provider gate: LBI-003 remains `manual_required`.
+- Deployment readiness: `production_preparation_ready_with_manual_provider_gate`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: decide whether to run low-limit real provider beta or prepare production sign-off pack.
+
+---
+
 ### 2026-05-25 — Phase 6 Limited Beta Checklist Execution
 
 **Worker**: codex-limited-beta-execution-worker
