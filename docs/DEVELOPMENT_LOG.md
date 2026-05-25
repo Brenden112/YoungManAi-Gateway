@@ -5,6 +5,28 @@
 
 ---
 
+### 2026-05-25 — Phase 5 Limited Beta Release Planning
+
+**Worker**: codex-limited-beta-release-planning-worker
+**Status**: `completed`
+**Summary**: Created the limited beta release planning package for small-scope real low-quota validation. The plan keeps fake provider coverage mandatory, permits `official_cloud` only with manually approved low-limit test keys, keeps `aggregator` optional, keeps `experimental_proxy` disabled/internal-only by default, and explicitly forbids `official_cloud` fallback to `experimental_proxy`. No business logic was modified, no feature was added, no real provider key was used, and production readiness remains `not_ready`.
+
+**Files created**: `docs/LIMITED_BETA_RELEASE_PLAN.md`, `docs/LIMITED_BETA_CHECKLIST.md`, `docs/LIMITED_BETA_EXIT_CRITERIA.md`, `docs/LIMITED_BETA_ROLLBACK_PLAN.md`, `docs/LIMITED_BETA_RISK_REGISTER.md`
+
+**Files modified**: `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- Limited beta scope, provider strategy, safety requirements, checklist, monitoring, stop conditions, production-preparation criteria, rollback plan, and risk register were documented.
+- `deployment_readiness`: `limited_beta_ready`.
+- `production_readiness`: `not_ready`.
+- No secrets, provider credentials, prompts, or responses were added to planning artifacts.
+- `git diff --check` passed.
+- `.factory/mission-state.json` JSON parse passed.
+
+**Next recommended action**: execute limited beta checklist.
+
+---
+
 ### 2026-05-25 — Internal Gray Runtime Retry Closure
 
 **Worker**: codex-internal-gray-runtime-retry-closure-worker

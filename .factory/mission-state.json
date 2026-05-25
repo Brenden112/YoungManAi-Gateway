@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_phase": "internal-gray-runtime-retry-closure",
-  "current_milestone": "PHASE-4",
-  "current_feature": "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE-2026-05-25",
+  "current_phase": "Phase 5 limited beta planning",
+  "current_milestone": "PHASE-5",
+  "current_feature": "LIMITED-BETA-RELEASE-PLANNING-2026-05-25",
   "overall_status": "passed",
   "completed_milestones": [
     "M0",
@@ -119,7 +119,8 @@
     "PHASE-3-INTERNAL-GRAY-TEST-PLANNING-2026-05-22",
     "PHASE-4-INTERNAL-GRAY-TEST-EXECUTION-2026-05-22",
     "PHASE-4-RUNTIME-RETRY-FIXTURE-BUILD-STABILITY-2026-05-25",
-    "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE-2026-05-25"
+    "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE-2026-05-25",
+    "LIMITED-BETA-RELEASE-PLANNING-2026-05-25"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -157,11 +158,12 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "internal-gray-runtime-retry-closure",
-    "milestone": "PHASE-4",
-    "worker": "codex-internal-gray-runtime-retry-closure-worker",
-    "status": "passed",
-    "current_phase": "internal-gray-runtime-retry-closure",
+    "phase": "limited-beta-release-planning",
+    "milestone": "PHASE-5",
+    "worker": "codex-limited-beta-release-planning-worker",
+    "status": "completed",
+    "current_phase": "Phase 5 limited beta planning",
+    "limited_beta_planning_status": "prepared",
     "phase_2_status": "passed",
     "isolated_staging_runtime_verification_status": "passed",
     "codespaces_staging_status": "passed",
@@ -172,21 +174,24 @@
     "deployment_readiness": "limited_beta_ready",
     "production_readiness": "not_ready",
     "non_blocking_notes": [
-      "Exact localhost:3000 fixture startup was blocked locally because unrelated container aiclient2api already publishes port 3000.",
-      "Equivalent fixture validation passed on FIXTURE_PORT=3001 and inside new-api_fixture-network.",
-      "Previously blocked runtime checks are passed_in_codespaces.",
+      "This phase created planning, checklist, exit criteria, rollback, and risk-register artifacts only.",
+      "No business logic was modified and no business feature was added.",
       "No real provider key was used and no real upstream provider was called.",
-      "Cleanup used docker compose down --volumes without --remove-orphans to avoid deleting an unrelated running postgres orphan."
+      "experimental_proxy remains disabled/internal-only by default.",
+      "production_readiness remains not_ready."
     ],
     "files_modified": [
-      "docs/INTERNAL_GRAY_TEST_REPORT.md",
-      "docs/INTERNAL_GRAY_ISSUES.md",
-      "docs/INTERNAL_GRAY_SIGNOFF.md",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "files_created": [],
-    "implementation_summary": "Closed Phase 4 internal gray runtime retry. Docker fixture build SIGTERM is fixed_by_fixture_dockerfile, previously blocked runtime checks are passed_in_codespaces, fixture build passed, and fake-provider runtime regression passed 9 passed, 0 failed. Dockerfile.fixture remains fixture-only for local fixture / staging smoke and not production. No business logic was modified and no business feature was added.",
+    "files_created": [
+      "docs/LIMITED_BETA_RELEASE_PLAN.md",
+      "docs/LIMITED_BETA_CHECKLIST.md",
+      "docs/LIMITED_BETA_EXIT_CRITERIA.md",
+      "docs/LIMITED_BETA_ROLLBACK_PLAN.md",
+      "docs/LIMITED_BETA_RISK_REGISTER.md"
+    ],
+    "implementation_summary": "Created Phase 5 limited beta release planning artifacts for small-scope real low-quota testing. The plan keeps fake provider coverage mandatory, permits official_cloud only with manually approved low-limit test keys, keeps aggregator optional, keeps experimental_proxy disabled/internal-only by default, forbids official_cloud fallback to experimental_proxy, and keeps production_readiness not_ready.",
     "failure_reason": "",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
@@ -197,49 +202,9 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
-        "command": "docker compose -f docker-compose.fixture.yml config",
-        "exit_code": 0,
-        "observation": "Fixture compose rendered successfully and points new-api build to Dockerfile.fixture."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 1,
-        "observation": "Direct host Docker context failed before build with Failed to initialize: protocol not available in this shell."
-      },
-      {
-        "command": "docker --context default compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 1,
-        "observation": "Fixture image built successfully; startup on localhost:3000 was blocked because unrelated aiclient2api already publishes port 3000."
-      },
-      {
-        "command": "FIXTURE_PORT=3001 docker --context default compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 0,
-        "observation": "Fixture started successfully on a free host port using the fixture-only Dockerfile."
-      },
-      {
-        "command": "docker --context default run --rm --network new-api_fixture-network curlimages/curl:8.16.0 -fsS http://new-api:3000/api/status",
-        "exit_code": 0,
-        "observation": "Gateway returned success inside the fixture network."
-      },
-      {
-        "command": "BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh",
-        "exit_code": 0,
-        "observation": "Seeded fake official and experimental fixture channels with placeholder keys inside the fixture network."
-      },
-      {
-        "command": "BASE_URL=http://new-api:3000 ADMIN_TOKEN=... ADMIN_USER_ID=1 bash scripts/regression.sh",
-        "exit_code": 0,
-        "observation": "Regression passed: 9 passed, 0 failed."
-      },
-      {
-        "command": "docker --context default compose -f docker-compose.fixture.yml down --volumes",
-        "exit_code": 0,
-        "observation": "Fixture services and volumes removed; --remove-orphans was intentionally not used to avoid deleting unrelated postgres orphan."
-      },
-      {
         "command": "git diff --check",
         "exit_code": 0,
-        "observation": "Whitespace check passed; Git emitted existing CRLF normalization warnings only."
+        "observation": "Whitespace check passed."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
@@ -252,9 +217,9 @@
     "critical_findings": 0,
     "high_findings": 0,
     "medium_findings": 0,
-    "low_findings": 1,
+    "low_findings": 0,
     "exit_criteria_met": true,
-    "next_recommended_action": "prepare limited beta release plan",
+    "next_recommended_action": "execute limited beta checklist",
     "business_logic_modified": false,
     "features_added": false
   },
@@ -373,7 +338,8 @@
     "CI-DOCKER-FIXTURE-ADMIN-USER-PROPAGATION": "completed",
     "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS": "completed",
     "PHASE-4-RUNTIME-RETRY-FIXTURE-BUILD-STABILITY": "completed",
-    "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE": "completed"
+    "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE": "completed",
+    "LIMITED-BETA-RELEASE-PLANNING": "completed"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -452,8 +418,8 @@
     "fail": [],
     "blocked": []
   },
-  "next_recommended_action": "prepare limited beta release plan",
-  "updated_at": "2026-05-25T20:10:00+08:00",
+  "next_recommended_action": "execute limited beta checklist",
+  "updated_at": "2026-05-25T20:30:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -660,7 +626,12 @@
   "high_findings_remaining": 0,
   "deployment_readiness": "limited_beta_ready",
   "production_readiness": "not_ready",
-  "current_phase": "internal-gray-runtime-retry-closure",
+  "current_phase": "Phase 5 limited beta planning",
+  "limited_beta_release_plan_status": "prepared",
+  "limited_beta_checklist_status": "prepared",
+  "limited_beta_exit_criteria_status": "prepared",
+  "limited_beta_rollback_plan_status": "prepared",
+  "limited_beta_risk_register_status": "prepared",
   "internal_gray_test_plan_status": "prepared",
   "internal_gray_test_checklist_status": "prepared",
   "internal_gray_exit_criteria_status": "prepared",
