@@ -5,6 +5,34 @@
 
 ---
 
+### 2026-05-25 — Phase 6 Limited Beta Checklist Execution
+
+**Worker**: codex-limited-beta-execution-worker
+**Status**: `completed_with_notes`
+**Summary**: Executed the limited beta checklist against the Docker fixture and current CI evidence. Fake-provider core paths passed, including admin/normal/internal user exercise, API key creation and masking, disabled API key rejection, normal-user admin rejection, model listing, non-streaming chat, experimental isolation, disabled experimental blocking, zero-balance upstream prevention, usage-log privacy, and targeted disabled-channel routing. No real provider key was used, no real upstream provider was called, and no business logic was modified. Production readiness remains `not_ready`.
+
+**Files created**: `docs/LIMITED_BETA_TEST_REPORT.md`, `docs/LIMITED_BETA_ISSUES.md`, `docs/LIMITED_BETA_SIGNOFF.md`
+
+**Files modified**: `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `bash scripts/check-config-secrets.sh` passed.
+- `bash scripts/ci-verify.sh` had no failed checks, but local Go/frontend checks were blocked.
+- `LOCAL_FIXTURE=1 bash scripts/regression.sh` was blocked locally because Go is not in PATH.
+- Docker fixture build/start passed with `FIXTURE_PORT=3001`.
+- Docker-network `/api/status` passed.
+- Corrected containerized API smoke passed 28 core checks; targeted disabled unique official channel check passed.
+- GitHub Actions `Pre-release verification` run 23 passed for commit `675091d0`.
+- `git diff --check` passed.
+- `.factory/mission-state.json` JSON parse passed.
+- Critical findings: `0`; high findings: `0`; medium findings: `3`; low findings: `2`.
+- Deployment readiness: `limited_beta_passed_with_notes`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: resolve beta notes before production preparation.
+
+---
+
 ### 2026-05-25 — Phase 5 Limited Beta Release Planning
 
 **Worker**: codex-limited-beta-release-planning-worker

@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_phase": "Phase 5 limited beta planning",
-  "current_milestone": "PHASE-5",
-  "current_feature": "LIMITED-BETA-RELEASE-PLANNING-2026-05-25",
+  "current_phase": "Phase 6 limited beta execution",
+  "current_milestone": "PHASE-6",
+  "current_feature": "LIMITED-BETA-EXECUTION-2026-05-25",
   "overall_status": "passed",
   "completed_milestones": [
     "M0",
@@ -120,7 +120,8 @@
     "PHASE-4-INTERNAL-GRAY-TEST-EXECUTION-2026-05-22",
     "PHASE-4-RUNTIME-RETRY-FIXTURE-BUILD-STABILITY-2026-05-25",
     "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE-2026-05-25",
-    "LIMITED-BETA-RELEASE-PLANNING-2026-05-25"
+    "LIMITED-BETA-RELEASE-PLANNING-2026-05-25",
+    "LIMITED-BETA-EXECUTION-2026-05-25"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -158,12 +159,12 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "limited-beta-release-planning",
-    "milestone": "PHASE-5",
-    "worker": "codex-limited-beta-release-planning-worker",
-    "status": "completed",
-    "current_phase": "Phase 5 limited beta planning",
-    "limited_beta_planning_status": "prepared",
+    "phase": "limited-beta-execution",
+    "milestone": "PHASE-6",
+    "worker": "codex-limited-beta-execution-worker",
+    "status": "completed_with_notes",
+    "current_phase": "Phase 6 limited beta execution",
+    "limited_beta_execution_status": "completed_with_notes",
     "phase_2_status": "passed",
     "isolated_staging_runtime_verification_status": "passed",
     "codespaces_staging_status": "passed",
@@ -171,13 +172,16 @@
     "docker_fixture_build_sigterm_status": "fixed_by_fixture_dockerfile",
     "fixture_build_status": "passed",
     "runtime_regression": "9 passed, 0 failed",
-    "deployment_readiness": "limited_beta_ready",
+    "deployment_readiness": "limited_beta_passed_with_notes",
     "production_readiness": "not_ready",
     "non_blocking_notes": [
-      "This phase created planning, checklist, exit criteria, rollback, and risk-register artifacts only.",
+      "Docker fixture fake-provider core limited beta checks passed.",
+      "GitHub Actions pre-release verification run 23 passed for commit 675091d0.",
+      "Local Go is unavailable, so LOCAL_FIXTURE=1 regression remains blocked locally.",
+      "No human-approved low-limit real official_cloud provider key was supplied, so real provider calls were not executed.",
+      "Streaming, OpenAI SDK, and runtime organization/project workflow checks remain beta notes before production preparation.",
       "No business logic was modified and no business feature was added.",
       "No real provider key was used and no real upstream provider was called.",
-      "experimental_proxy remains disabled/internal-only by default.",
       "production_readiness remains not_ready."
     ],
     "files_modified": [
@@ -185,13 +189,11 @@
       ".factory/mission-state.json"
     ],
     "files_created": [
-      "docs/LIMITED_BETA_RELEASE_PLAN.md",
-      "docs/LIMITED_BETA_CHECKLIST.md",
-      "docs/LIMITED_BETA_EXIT_CRITERIA.md",
-      "docs/LIMITED_BETA_ROLLBACK_PLAN.md",
-      "docs/LIMITED_BETA_RISK_REGISTER.md"
+      "docs/LIMITED_BETA_TEST_REPORT.md",
+      "docs/LIMITED_BETA_ISSUES.md",
+      "docs/LIMITED_BETA_SIGNOFF.md"
     ],
-    "implementation_summary": "Created Phase 5 limited beta release planning artifacts for small-scope real low-quota testing. The plan keeps fake provider coverage mandatory, permits official_cloud only with manually approved low-limit test keys, keeps aggregator optional, keeps experimental_proxy disabled/internal-only by default, forbids official_cloud fallback to experimental_proxy, and keeps production_readiness not_ready.",
+    "implementation_summary": "Executed Phase 6 limited beta checklist against the Docker fixture and current CI evidence. Fake-provider core paths passed, including admin/normal/internal users, API key masking and disablement, normal-user admin rejection, model listing, non-streaming chat, experimental isolation, disabled experimental blocking, zero-balance upstream prevention, usage-log privacy, and targeted disabled-channel routing. Medium/low notes remain for local Go regression, org/project runtime workflow, real low-limit official_cloud execution, streaming, and OpenAI SDK compatibility.",
     "failure_reason": "",
     "blockers_closed": [],
     "blockers_moved_to_ci": [],
@@ -202,9 +204,59 @@
     "smoke_fixture_files_created_or_modified": [],
     "commands_run": [
       {
+        "command": "bash scripts/check-config-secrets.sh",
+        "exit_code": 0,
+        "observation": "Config secret check passed."
+      },
+      {
+        "command": "bash scripts/ci-verify.sh",
+        "exit_code": 2,
+        "observation": "No failed checks; passed=2 failed=0 blocked=7 due missing local Go and frontend dependencies."
+      },
+      {
+        "command": "LOCAL_FIXTURE=1 bash scripts/regression.sh",
+        "exit_code": 2,
+        "observation": "Blocked locally because Go binary was not found."
+      },
+      {
+        "command": "docker compose -f docker-compose.fixture.yml config",
+        "exit_code": 0,
+        "observation": "Fixture compose rendered successfully."
+      },
+      {
+        "command": "FIXTURE_PORT=3001 docker --context default compose -f docker-compose.fixture.yml up -d --build",
+        "exit_code": 0,
+        "observation": "Fixture image built and containers started."
+      },
+      {
+        "command": "docker --context default run --rm --network new-api_fixture-network curlimages/curl:8.16.0 -fsS http://new-api:3000/api/status",
+        "exit_code": 0,
+        "observation": "Fixture API status returned success inside Docker network."
+      },
+      {
+        "command": "corrected containerized Node fixture smoke",
+        "exit_code": 1,
+        "observation": "Passed 28 checks; one shared-model disabled-channel check was inconclusive because another enabled official channel served the same model."
+      },
+      {
+        "command": "targeted disabled unique official channel check",
+        "exit_code": 0,
+        "observation": "Disabled unique-model official channel returned HTTP 503."
+      },
+      {
+        "command": "curl -s GitHub Actions pre-release verification API",
+        "exit_code": 0,
+        "observation": "Latest pre-release verification run 23 completed successfully for commit 675091d0."
+      },
+      {
+        "command": "docker --context default compose -f docker-compose.fixture.yml stop",
+        "exit_code": 0,
+        "observation": "Fixture containers stopped."
+      },
+      {
         "command": "git diff --check",
         "exit_code": 0,
-        "observation": "Whitespace check passed."
+        "observation": "Whitespace check passed; Git emitted existing CRLF normalization warnings only."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
@@ -216,10 +268,10 @@
     "mission_state_updated": true,
     "critical_findings": 0,
     "high_findings": 0,
-    "medium_findings": 0,
-    "low_findings": 0,
-    "exit_criteria_met": true,
-    "next_recommended_action": "execute limited beta checklist",
+    "medium_findings": 3,
+    "low_findings": 2,
+    "exit_criteria_met": false,
+    "next_recommended_action": "resolve beta notes before production preparation",
     "business_logic_modified": false,
     "features_added": false
   },
@@ -339,7 +391,8 @@
     "CI-DOCKER-FIXTURE-TOKEN-ROUTE-BILLING-BYPASS": "completed",
     "PHASE-4-RUNTIME-RETRY-FIXTURE-BUILD-STABILITY": "completed",
     "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE": "completed",
-    "LIMITED-BETA-RELEASE-PLANNING": "completed"
+    "LIMITED-BETA-RELEASE-PLANNING": "completed",
+    "LIMITED-BETA-EXECUTION": "completed_with_notes"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -418,8 +471,8 @@
     "fail": [],
     "blocked": []
   },
-  "next_recommended_action": "execute limited beta checklist",
-  "updated_at": "2026-05-25T20:30:00+08:00",
+  "next_recommended_action": "resolve beta notes before production preparation",
+  "updated_at": "2026-05-25T20:40:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -624,14 +677,21 @@
   ],
   "critical_findings_remaining": 0,
   "high_findings_remaining": 0,
-  "deployment_readiness": "limited_beta_ready",
+  "deployment_readiness": "limited_beta_passed_with_notes",
   "production_readiness": "not_ready",
-  "current_phase": "Phase 5 limited beta planning",
+  "current_phase": "Phase 6 limited beta execution",
   "limited_beta_release_plan_status": "prepared",
   "limited_beta_checklist_status": "prepared",
   "limited_beta_exit_criteria_status": "prepared",
   "limited_beta_rollback_plan_status": "prepared",
   "limited_beta_risk_register_status": "prepared",
+  "limited_beta_execution_status": "completed_with_notes",
+  "limited_beta_exit_criteria_met": false,
+  "limited_beta_critical_findings": 0,
+  "limited_beta_high_findings": 0,
+  "limited_beta_medium_findings": 3,
+  "limited_beta_low_findings": 2,
+  "limited_beta_next_recommended_action": "resolve beta notes before production preparation",
   "internal_gray_test_plan_status": "prepared",
   "internal_gray_test_checklist_status": "prepared",
   "internal_gray_exit_criteria_status": "prepared",
