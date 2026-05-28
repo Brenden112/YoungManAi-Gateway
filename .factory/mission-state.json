@@ -2,9 +2,9 @@
   "project": "B2B Multi-Provider AI API Gateway MVP",
   "base_project": "new-api",
   "mission_mode": "Droid Mission",
-  "current_phase": "Phase 6B limited beta notes resolution",
-  "current_milestone": "PHASE-6B",
-  "current_feature": "LIMITED-BETA-NOTES-RESOLUTION-2026-05-25",
+  "current_phase": "Phase 7 production preparation sign-off pack",
+  "current_milestone": "PHASE-7",
+  "current_feature": "PRODUCTION-PREPARATION-SIGNOFF-PACK-2026-05-28",
   "overall_status": "passed",
   "completed_milestones": [
     "M0",
@@ -122,7 +122,8 @@
     "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE-2026-05-25",
     "LIMITED-BETA-RELEASE-PLANNING-2026-05-25",
     "LIMITED-BETA-EXECUTION-2026-05-25",
-    "LIMITED-BETA-NOTES-RESOLUTION-2026-05-25"
+    "LIMITED-BETA-NOTES-RESOLUTION-2026-05-25",
+    "PRODUCTION-PREPARATION-SIGNOFF-PACK-2026-05-28"
   ],
   "pending_features": [],
   "blocked_features": [],
@@ -160,120 +161,49 @@
     "next_issue": "run_staging_runtime_verification_in_isolated_environment"
   },
   "last_handoff": {
-    "phase": "limited-beta-notes-resolution",
-    "milestone": "PHASE-6B",
-    "worker": "codex-limited-beta-notes-resolution-worker",
-    "status": "completed_with_manual_gate",
-    "current_phase": "Phase 6B limited beta notes resolution",
-    "limited_beta_execution_status": "completed_with_manual_gate",
-    "phase_2_status": "passed",
-    "isolated_staging_runtime_verification_status": "passed",
-    "codespaces_staging_status": "passed",
-    "docker_fixture_runtime_status": "passed_in_codespaces",
-    "docker_fixture_build_sigterm_status": "fixed_by_fixture_dockerfile",
-    "fixture_build_status": "passed",
-    "runtime_regression": "9 passed, 0 failed",
+    "phase": "production-preparation-signoff-pack",
+    "milestone": "PHASE-7",
+    "worker": "codex-production-preparation-signoff-pack-worker",
+    "status": "completed",
+    "current_phase": "Phase 7 production preparation sign-off pack",
     "deployment_readiness": "production_preparation_ready_with_manual_provider_gate",
     "production_readiness": "not_ready",
-    "non_blocking_notes": [
-      "LBI-001 is closed_by_codespaces_or_ci using GitHub Actions pre-release verification run 24 for commit 57ad3623.",
-      "LBI-002 org/project runtime workflow passed in fixture with token-context attribution and spoofed client IDs ignored.",
-      "LBI-003 remains manual_required because no human-approved low-limit real official_cloud provider key was supplied.",
-      "LBI-004 streaming smoke passed in fixture.",
-      "LBI-005 OpenAI SDK smoke passed in fixture.",
-      "No business logic was modified and no business feature was added.",
-      "No real provider key was used and no real upstream provider was called.",
-      "production_readiness remains not_ready."
+    "lbi_003_status": "manual_required",
+    "critical_findings": 0,
+    "high_findings": 0,
+    "files_created": [
+      "docs/PRODUCTION_PREPARATION_SIGNOFF.md",
+      "docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md",
+      "docs/PRODUCTION_ROLLBACK_PLAN.md",
+      "docs/PRODUCTION_SECRET_MANAGEMENT_CHECKLIST.md",
+      "docs/PRODUCTION_MONITORING_AND_ALERTING_PLAN.md",
+      "docs/PRODUCTION_RELEASE_RISK_REGISTER.md"
     ],
     "files_modified": [
-      "docs/LIMITED_BETA_TEST_REPORT.md",
-      "docs/LIMITED_BETA_ISSUES.md",
-      "docs/LIMITED_BETA_SIGNOFF.md",
       "docs/DEVELOPMENT_LOG.md",
       ".factory/mission-state.json"
     ],
-    "files_created": [
-      "docs/LIMITED_BETA_SDK_SMOKE.md"
-    ],
-    "implementation_summary": "Resolved fake-provider limited beta notes. Org/project runtime binding passed with fixture-only tenant records, streaming smoke passed, and OpenAI Node SDK smoke passed. Local Go absence is closed by CI/Codespaces evidence. Real low-limit official_cloud remains a manual provider gate because no approved low-limit key was supplied.",
-    "failure_reason": "",
-    "blockers_closed": [],
-    "blockers_moved_to_ci": [],
-    "waiver_files_created": [],
-    "ci_files_created_or_modified": [],
-    "scripts_created_or_modified": [],
-    "runbooks_created": [],
-    "smoke_fixture_files_created_or_modified": [],
+    "implementation_summary": "Prepared production preparation review materials only. LBI-003 remains manual_required; no real provider key was used and no paid provider was called. Production readiness remains not_ready.",
     "commands_run": [
-      {
-        "command": "bash scripts/check-config-secrets.sh",
-        "exit_code": 0,
-        "observation": "Config secret check passed."
-      },
-      {
-        "command": "bash scripts/ci-verify.sh",
-        "exit_code": 2,
-        "observation": "No failed checks locally; blocked by missing local Go and frontend dependencies. Current CI/Codespaces evidence passed."
-      },
-      {
-        "command": "curl -s GitHub Actions pre-release verification API",
-        "exit_code": 0,
-        "observation": "Latest pre-release verification run 24 completed successfully for commit 57ad3623."
-      },
-      {
-        "command": "docker compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 1,
-        "observation": "Fixture image built but startup on host port 3000 was blocked because the port was already allocated."
-      },
-      {
-        "command": "FIXTURE_PORT=3001 docker --context default compose -f docker-compose.fixture.yml up -d --build",
-        "exit_code": 0,
-        "observation": "Clean fixture image built and containers started on host port 3001."
-      },
-      {
-        "command": "BASE_URL=http://new-api:3000 bash scripts/seed-local-fixture.sh",
-        "exit_code": 0,
-        "observation": "Fixture seed passed in an Alpine helper container with curl and jq."
-      },
-      {
-        "command": "fixture-only org/project runtime smoke",
-        "exit_code": 0,
-        "observation": "LBI-002 passed: org/project token context, spoof rejection, disabled org/project rejection, and model/provider policy checks passed."
-      },
-      {
-        "command": "fixture streaming smoke",
-        "exit_code": 0,
-        "observation": "LBI-004 passed: stream=true returned SSE/chunk output, log privacy held, and org/provider policy was preserved."
-      },
-      {
-        "command": "OpenAI Node SDK fixture smoke",
-        "exit_code": 0,
-        "observation": "LBI-005 passed: SDK models.list, non-streaming chat, and streaming chat succeeded against fake-provider fixture."
-      },
-      {
-        "command": "docker --context default compose -f docker-compose.fixture.yml down --remove-orphans --volumes",
-        "exit_code": 0,
-        "observation": "Fixture containers, network, and volumes were removed."
-      },
       {
         "command": "git diff --check",
         "exit_code": 0,
-        "observation": "Whitespace check passed; Git emitted existing CRLF normalization warnings only."
+        "observation": "Whitespace check passed."
       },
       {
         "command": "node -e \"JSON.parse(require('fs').readFileSync('.factory/mission-state.json','utf8'))\"",
         "exit_code": 0,
         "observation": "Mission state JSON parse passed."
+      },
+      {
+        "command": "bash scripts/check-config-secrets.sh",
+        "exit_code": 0,
+        "observation": "Config secret check passed."
       }
     ],
     "development_log_updated": true,
     "mission_state_updated": true,
-    "critical_findings": 0,
-    "high_findings": 0,
-    "medium_findings": 0,
-    "low_findings": 0,
-    "exit_criteria_met": true,
-    "next_recommended_action": "decide whether to run low-limit real provider beta or prepare production sign-off pack",
+    "next_recommended_action": "decide low-limit real provider beta gate or human production sign-off review",
     "business_logic_modified": false,
     "features_added": false
   },
@@ -395,7 +325,8 @@
     "INTERNAL-GRAY-RUNTIME-RETRY-CLOSURE": "completed",
     "LIMITED-BETA-RELEASE-PLANNING": "completed",
     "LIMITED-BETA-EXECUTION": "completed_with_notes",
-    "LIMITED-BETA-NOTES-RESOLUTION": "completed_with_manual_gate"
+    "LIMITED-BETA-NOTES-RESOLUTION": "completed_with_manual_gate",
+    "PRODUCTION-PREPARATION-SIGNOFF-PACK": "completed"
   },
   "feature_matrix_validation_status": {
     "checked_total": 70,
@@ -474,8 +405,8 @@
     "fail": [],
     "blocked": []
   },
-  "next_recommended_action": "decide whether to run low-limit real provider beta or prepare production sign-off pack",
-  "updated_at": "2026-05-25T21:05:00+08:00",
+  "next_recommended_action": "decide low-limit real provider beta gate or human production sign-off review",
+  "updated_at": "2026-05-28T00:00:00+08:00",
   "handoff_template_completed": {
     "feature_id": "",
     "milestone": "",
@@ -682,7 +613,6 @@
   "high_findings_remaining": 0,
   "deployment_readiness": "production_preparation_ready_with_manual_provider_gate",
   "production_readiness": "not_ready",
-  "current_phase": "Phase 6B limited beta notes resolution",
   "limited_beta_release_plan_status": "prepared",
   "limited_beta_checklist_status": "prepared",
   "limited_beta_exit_criteria_status": "prepared",
@@ -739,5 +669,14 @@
   "local_go_toolchain_blocked": "closed_in_codespaces",
   "docker_staging_runtime_blocked": "closed_in_codespaces",
   "api_staging_check_blocked": "closed_in_codespaces",
-  "frontend_local_script_check": "non_blocking_note_ci_frontend_check_passed"
+  "frontend_local_script_check": "non_blocking_note_ci_frontend_check_passed",
+  "lbi_003_status": "manual_required",
+  "production_preparation_signoff_status": "completed",
+  "production_deployment_checklist_status": "prepared",
+  "production_rollback_plan_status": "prepared",
+  "production_secret_management_checklist_status": "prepared",
+  "production_monitoring_alerting_plan_status": "prepared",
+  "production_release_risk_register_status": "prepared",
+  "production_preparation_critical_findings": 0,
+  "production_preparation_high_findings": 0
 }
