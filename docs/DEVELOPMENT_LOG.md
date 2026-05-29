@@ -5,6 +5,71 @@
 
 ---
 
+### 2026-05-29 — Phase 8D Confirm Production Env Not Committed
+
+**Worker**: codex-confirm-production-env-not-committed-worker
+**Status**: `completed`
+**Summary**: Applied release-owner confirmation from `Brenden112` for `confirm_env_production_not_committed` only. The recorded evidence states that git-tracked env files are limited to `.env.example` and `.env.staging.example`, no `.env`, `.env.production`, `.env.staging`, or `.env.local` file is tracked, and no real production env file is present in the repository. The remaining production secret, backup, infrastructure, monitoring, and rollback proof items stay pending. No business logic was modified, no feature was added, no production deployment was performed, and production readiness remains `not_ready`.
+
+**Files modified**: `docs/HUMAN_SIGNOFF_ACTION_ITEMS.md`, `docs/PRODUCTION_FINAL_APPROVAL_CHECKLIST.md`, `docs/PRODUCTION_RELEASE_DECISION_RECORD.md`, `docs/PRODUCTION_GO_NO_GO.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `git diff --check` passed.
+- `.factory/mission-state.json` parsed successfully with Node.
+- `bash scripts/check-config-secrets.sh` passed.
+- Confirmed item: `confirm_env_production_not_committed`.
+- Remaining pending items: `confirm_production_secret_configuration`, `confirm_database_backup_available`, `confirm_redis_db_docker_domain_tls_configuration`, `confirm_monitoring_alerting_available`, `confirm_rollback_plan_executable`.
+- Deployment readiness: `production_signoff_ready_with_pending_infra_items`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: configure production secrets, backup, infrastructure, monitoring, and rollback proof.
+
+---
+
+### 2026-05-29 — Phase 8C Manual Signoff Partial Confirmation
+
+**Worker**: codex-manual-signoff-partial-confirmation-worker
+**Status**: `completed`
+**Summary**: Applied release-owner partial manual confirmation from `Brenden112`. Seven additional human signoff items are now confirmed based on CI, staging, internal gray, limited beta, DeepSeek low-limit provider beta, fake-provider regression, billing/privacy controls, and audit evidence. Six infrastructure-dependent items remain pending for real production/staging environment proof. No business logic was modified, no feature was added, no production deployment was performed, and production readiness remains `not_ready`.
+
+**Files modified**: `docs/HUMAN_SIGNOFF_ACTION_ITEMS.md`, `docs/PRODUCTION_RELEASE_OWNER_SIGNOFF_TEMPLATE.md`, `docs/PRODUCTION_FINAL_APPROVAL_CHECKLIST.md`, `docs/PRODUCTION_RELEASE_DECISION_RECORD.md`, `docs/PRODUCTION_GO_NO_GO.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `git diff --check` passed.
+- `.factory/mission-state.json` parsed successfully with Node.
+- `bash scripts/check-config-secrets.sh` passed.
+- Confirmed items: `accept_deepseek_low_limit_beta_result`, `confirm_experimental_proxy_disabled_or_internal_only`, `confirm_store_full_text_enabled_false`, `confirm_real_provider_keys_not_in_logs_frontend_docs_git`, `confirm_user_balance_deduction_zero_balance_logic`, `confirm_admin_top_up_audit_records`, `confirm_usage_log_no_full_prompt_response`.
+- Remaining pending items: `confirm_production_secret_configuration`, `confirm_env_production_not_committed`, `confirm_database_backup_available`, `confirm_redis_db_docker_domain_tls_configuration`, `confirm_monitoring_alerting_available`, `confirm_rollback_plan_executable`.
+- Deployment readiness: `production_signoff_ready_with_pending_infra_items`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: configure production infrastructure, secrets, backup, monitoring, and rollback proof.
+
+---
+
+### 2026-05-29 — Phase 8B Human Signoff Action Items
+
+**Worker**: codex-human-signoff-action-items-worker
+**Status**: `completed`
+**Summary**: Resolved the release-owner assignment pending item only. The release owner is confirmed as `Brenden112`, while all other production human signoff items remain pending for manual completion. Added grouped action items, a release-owner signoff template, and a final approval checklist. No business logic was modified, no feature was added, and no production deployment was performed.
+
+**Files created**: `docs/HUMAN_SIGNOFF_ACTION_ITEMS.md`, `docs/PRODUCTION_RELEASE_OWNER_SIGNOFF_TEMPLATE.md`, `docs/PRODUCTION_FINAL_APPROVAL_CHECKLIST.md`
+
+**Files modified**: `docs/PRODUCTION_RELEASE_DECISION_RECORD.md`, `docs/DEVELOPMENT_LOG.md`, `.factory/mission-state.json`
+
+**Validation**:
+- `git diff --check` passed.
+- `.factory/mission-state.json` parsed successfully with Node.
+- `bash scripts/check-config-secrets.sh` passed.
+- Release owner: `Brenden112`.
+- Release owner assignment: `confirmed`.
+- Deployment readiness: `production_signoff_ready_with_pending_items`.
+- Production readiness: `not_ready`.
+
+**Next recommended action**: manually complete remaining production final approval checklist.
+
+---
+
 ### 2026-05-29 — Phase 8 Human Production Signoff Review
 
 **Worker**: codex-human-production-signoff-review-worker

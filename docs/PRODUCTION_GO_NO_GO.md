@@ -1,16 +1,16 @@
 # Production Go / No-Go
 
 Date: 2026-05-29
-Phase: `Phase 8 human production sign-off review`
-Status: `no_go_pending_human_confirmation`
-Deployment readiness: `production_signoff_ready_with_pending_items`
+Phase: `Phase 8D confirm production env not committed`
+Status: `no_go_pending_infrastructure_confirmation`
+Deployment readiness: `production_signoff_ready_with_pending_infra_items`
 Production readiness: `not_ready`
 
 ## Current Decision
 
-`NO-GO for production deployment until required human confirmations are complete.`
+`NO-GO for production deployment until required production secrets, backup, infrastructure, monitoring, and rollback proof are complete.`
 
-This is not a technical failure. The current technical evidence is sufficient to prepare human signoff review, but production release remains blocked by explicit human approval requirements.
+This is not a technical failure. The current technical evidence and partial human signoff are sufficient to narrow the remaining block to production environment proof, but production release remains blocked.
 
 ## Current State
 
@@ -24,25 +24,28 @@ This is not a technical failure. The current technical evidence is sufficient to
 | Critical findings | `0` |
 | High findings | `0` |
 | LBI-003 | `closed` |
-| Deployment readiness | `production_signoff_ready_with_pending_items` |
+| Deployment readiness | `production_signoff_ready_with_pending_infra_items` |
 | Production readiness | `not_ready` |
 
-## Pending Human Items
+## Confirmed Human Items
 
 - Release owner assignment.
 - DeepSeek low-limit beta acceptance.
-- Production secret configuration confirmation.
-- `.env.production` not committed confirmation.
-- Database backup confirmation.
-- Redis, DB, Docker, domain, and TLS confirmation.
-- Monitoring and alerting confirmation.
-- Rollback plan confirmation.
 - `experimental_proxy` disabled/internal-only confirmation.
 - `STORE_FULL_TEXT_ENABLED=false` confirmation.
 - Real provider key non-exposure confirmation for logs, frontend, docs, and git.
 - User balance, deduction, and zero-balance logic confirmation.
 - Admin top-up audit confirmation.
 - `usage_log` no full prompt/response confirmation.
+- Production env not committed confirmation.
+
+## Remaining Pending Items
+
+- Production secret configuration confirmation.
+- Database backup confirmation.
+- Redis, DB, Docker, domain, and TLS confirmation.
+- Monitoring and alerting confirmation.
+- Rollback plan confirmation.
 
 ## Go Criteria
 
@@ -54,15 +57,14 @@ Production deployment review may move to release candidate only when every pendi
 
 ## No-Go Criteria
 
-Production remains no-go when any human item is pending:
+Production remains no-go while infrastructure-dependent items are pending:
 
-- `deployment_readiness = production_signoff_ready_with_pending_items`
+- `deployment_readiness = production_signoff_ready_with_pending_infra_items`
 - `production_readiness = not_ready`
-- `next_recommended_action = resolve human sign-off pending items`
+- `next_recommended_action = configure production secrets, backup, infrastructure, monitoring, and rollback proof`
 
 Production is not ready if any critical/high finding appears:
 
 - `deployment_readiness = not_ready`
 - `production_readiness = not_ready`
 - `next_recommended_action = fix critical/high sign-off findings`
-
