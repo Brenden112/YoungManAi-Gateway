@@ -1,7 +1,7 @@
 # Production Final Approval Checklist
 
 Date: 2026-05-29
-Phase: `Phase 8D confirm production env not committed`
+Phase: `Phase 8E confirm production secret configuration`
 Release owner: `Brenden112`
 Release owner assignment: `confirmed`
 Deployment readiness: `production_signoff_ready_with_pending_infra_items`
@@ -20,10 +20,11 @@ This checklist is the remaining manual production approval checklist. It does no
 - [x] `confirm_usage_log_no_full_prompt_response` - `usage_log` does not save complete prompt or complete response content.
 - [x] `confirm_admin_top_up_audit_records` - admin top-up creates auditable operation records.
 - [x] `confirm_env_production_not_committed` - no real production env file is committed or tracked.
+- [x] `confirm_production_secret_configuration` - production-like secret configuration has been confirmed by the release owner without recording secret values.
 
 ## Secrets / Environment
 
-- [ ] `confirm_production_secret_configuration` - production secrets are configured in an approved secret source.
+All currently required secret/environment signoff items are confirmed. Real production servers still require a local, untracked `.env.production`.
 
 ## Infrastructure
 
@@ -44,4 +45,4 @@ Production remains blocked while any checklist item is unchecked:
 
 - `deployment_readiness = production_signoff_ready_with_pending_infra_items`
 - `production_readiness = not_ready`
-- `next_recommended_action = configure production secrets, backup, infrastructure, monitoring, and rollback proof`
+- `next_recommended_action = configure database backup, infrastructure/domain/TLS, monitoring, and rollback proof`

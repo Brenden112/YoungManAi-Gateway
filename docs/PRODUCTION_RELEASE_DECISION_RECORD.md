@@ -1,7 +1,7 @@
 # Production Release Decision Record
 
 Date: 2026-05-29
-Phase: `Phase 8D confirm production env not committed`
+Phase: `Phase 8E confirm production secret configuration`
 Status: `pending_infrastructure_confirmation`
 Deployment readiness: `production_signoff_ready_with_pending_infra_items`
 Production readiness: `not_ready`
@@ -33,7 +33,7 @@ This record is reserved for the human release-owner decision. Automated preparat
 | Decision | `pending_human_input` |
 | Decision timestamp | `pending_human_input` |
 | Accepted DeepSeek low-limit beta result | `confirmed` |
-| Production secrets confirmed | `pending_human_input` |
+| Production secrets confirmed | `confirmed` |
 | Database backup confirmed | `pending_human_input` |
 | Monitoring and alerting confirmed | `pending_human_input` |
 | Rollback plan confirmed | `pending_human_input` |
@@ -46,7 +46,7 @@ This record is reserved for the human release-owner decision. Automated preparat
 |---|---|---|---|
 | `release_owner_assignment` | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29. |
 | `accept_deepseek_low_limit_beta_result` | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29. |
-| `confirm_production_secret_configuration` | `Brenden112` | `pending` | Requires approved secret-source confirmation without recording secret values. |
+| `confirm_production_secret_configuration` | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29: production-like `.env.production` exists locally, is ignored by git, required production key names are present, secret output was redacted, and active placeholder secret scan reported none. Real production servers must create their own local `.env.production`; it must not be committed. |
 | `confirm_env_production_not_committed` | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29: no real production env file is present or tracked. |
 | `confirm_database_backup_available` | `Brenden112` | `pending` | Requires backup and restore-test evidence. |
 | `confirm_redis_db_docker_domain_tls_configuration` | `Brenden112` | `pending` | Requires production infrastructure confirmation. |
@@ -64,7 +64,7 @@ This record is reserved for the human release-owner decision. Automated preparat
 | Condition | Deployment readiness | Production readiness | Next action |
 |---|---|---|---|
 | All human confirmations pass and no critical/high finding exists | `production_release_candidate` | `pending_final_human_approval` | `execute final production deployment checklist` |
-| Infrastructure-dependent confirmation remains pending | `production_signoff_ready_with_pending_infra_items` | `not_ready` | `configure production secrets, backup, infrastructure, monitoring, and rollback proof` |
+| Infrastructure-dependent confirmation remains pending | `production_signoff_ready_with_pending_infra_items` | `not_ready` | `configure database backup, infrastructure/domain/TLS, monitoring, and rollback proof` |
 | Any critical/high finding exists | `not_ready` | `not_ready` | `fix critical/high sign-off findings` |
 
 ## Explicit Non-Approvals

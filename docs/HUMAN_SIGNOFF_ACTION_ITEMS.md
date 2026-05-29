@@ -1,7 +1,7 @@
 # Human Signoff Action Items
 
 Date: 2026-05-29
-Phase: `Phase 8D confirm production env not committed`
+Phase: `Phase 8E confirm production secret configuration`
 Status: `partial_confirmation_pending_infra_items`
 Release owner: `Brenden112`
 Release owner assignment: `confirmed`
@@ -23,7 +23,7 @@ No real provider key, token, credential, prompt, or response is recorded here.
 
 | Item id | Description | Required evidence | Owner | Status | Notes |
 |---|---|---|---|---|---|
-| `confirm_production_secret_configuration` | Confirm production secrets are configured in an approved secret source. | Secret-store or production-host review by the release owner without copying secret values into docs. | `Brenden112` | `pending` | Do not record real secret values in this repository. |
+| `confirm_production_secret_configuration` | Confirm production secrets are configured in an approved secret source. | Secret-store or production-host review by the release owner without copying secret values into docs. | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29: production-like `.env.production` exists locally, is ignored by git, required key names are present, secret output was redacted, and active placeholder secret scan reported none. Real production servers must create their own local `.env.production`; it must not be committed. |
 | `confirm_env_production_not_committed` | Confirm `.env.production` is not committed to git. | Git status/review evidence and secret checklist confirmation. | `Brenden112` | `confirmed` | Confirmed by release owner statement on 2026-05-29: tracked env files are limited to `.env.example` and `.env.staging.example`; no real production env file is present or tracked. |
 
 ## Infrastructure
@@ -73,8 +73,8 @@ No real provider key, token, credential, prompt, or response is recorded here.
 
 ## Current Outcome
 
-Because production secrets, backup, infrastructure, monitoring, and rollback proof remain pending:
+Because backup, infrastructure, monitoring, and rollback proof remain pending:
 
 - `deployment_readiness = production_signoff_ready_with_pending_infra_items`
 - `production_readiness = not_ready`
-- `next_recommended_action = configure production secrets, backup, infrastructure, monitoring, and rollback proof`
+- `next_recommended_action = configure database backup, infrastructure/domain/TLS, monitoring, and rollback proof`

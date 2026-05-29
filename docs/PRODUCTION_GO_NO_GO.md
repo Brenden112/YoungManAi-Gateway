@@ -1,14 +1,14 @@
 # Production Go / No-Go
 
 Date: 2026-05-29
-Phase: `Phase 8D confirm production env not committed`
+Phase: `Phase 8E confirm production secret configuration`
 Status: `no_go_pending_infrastructure_confirmation`
 Deployment readiness: `production_signoff_ready_with_pending_infra_items`
 Production readiness: `not_ready`
 
 ## Current Decision
 
-`NO-GO for production deployment until required production secrets, backup, infrastructure, monitoring, and rollback proof are complete.`
+`NO-GO for production deployment until required database backup, infrastructure/domain/TLS, monitoring, and rollback proof are complete.`
 
 This is not a technical failure. The current technical evidence and partial human signoff are sufficient to narrow the remaining block to production environment proof, but production release remains blocked.
 
@@ -38,10 +38,10 @@ This is not a technical failure. The current technical evidence and partial huma
 - Admin top-up audit confirmation.
 - `usage_log` no full prompt/response confirmation.
 - Production env not committed confirmation.
+- Production-like secret configuration confirmation.
 
 ## Remaining Pending Items
 
-- Production secret configuration confirmation.
 - Database backup confirmation.
 - Redis, DB, Docker, domain, and TLS confirmation.
 - Monitoring and alerting confirmation.
@@ -61,7 +61,7 @@ Production remains no-go while infrastructure-dependent items are pending:
 
 - `deployment_readiness = production_signoff_ready_with_pending_infra_items`
 - `production_readiness = not_ready`
-- `next_recommended_action = configure production secrets, backup, infrastructure, monitoring, and rollback proof`
+- `next_recommended_action = configure database backup, infrastructure/domain/TLS, monitoring, and rollback proof`
 
 Production is not ready if any critical/high finding appears:
 
